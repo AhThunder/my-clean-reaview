@@ -1,0 +1,35 @@
+# ==========================================
+# 쿠팡 AI 리뷰 요약기 .gitignore
+# ==========================================
+
+# [보안 주의] 평문 API 키 파일 (절대 깃허브 업로드 금지)
+API.txt
+api.txt
+*.key
+.env
+.env.*
+
+# 압축 백업 파일
+*.zip
+*.tar.gz
+*.rar
+
+# 로컬 개발 및 테스트 스크립트
+*.ps1
+scratch/
+test/
+
+# 로그 및 임시 캐시 파일
+*.log
+.tempmediaStorage/
+.user_uploaded/
+
+# OS 및 에디터 설정 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# 초기 업로드 필요 없음
+README.md

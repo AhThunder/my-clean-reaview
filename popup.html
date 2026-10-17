@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>쿠팡 AI 리뷰 요약기</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+  <div class="app-container" id="appContainer">
+
+    <!-- Global App Header -->
+    <header class="app-header" id="appHeader">
+      <div class="header-left">
+        <button class="icon-nav-btn back-btn" id="headerBackBtn" style="display: none;" title="뒤로가기" aria-label="뒤로가기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <div class="brand-group" id="headerBrandGroup">
+          <div class="brand-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h1 class="brand-title" id="headerTitle">리뷰 요약기</h1>
+            <span class="brand-subtitle" id="headerSubtitle">Gemini 3.5 Flash-Lite</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="icon-nav-btn" id="headerSettingsBtn" title="설정" aria-label="설정">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path
+              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+        <button class="icon-nav-btn close-btn" id="headerCloseBtn" title="닫기" aria-label="닫기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Scrollable Body -->
+    <div class="view-viewport" id="viewViewport">
+
+      <!-- ============================================== -->
+      <!-- VIEW 1: MAIN SETUP VIEW (Prototype 1_.png)    -->
+      <!-- ============================================== -->
+      <section class="view-panel" id="viewMain" style="display: block;">
+
+        <!-- Previous Session Restore Banner -->
+        <div class="session-restore-banner" id="sessionRestoreBanner" style="display: none;">
+          <div class="restore-banner-left">
+            <span class="pulse-indicator"></span>
+            <div class="restore-banner-text">
+              <strong class="restore-title" id="restoreBannerTitle">방금 전 요약된 결과가 있어요</strong>
+              <span class="restore-sub" id="restoreBannerSub">클릭 시 바로 결과를 확인할 수 있어요</span>
+            </div>
+          </div>
+          <button type="button" class="btn-restore-action" id="restoreSessionBtn">결과 보기</button>
+        </div>
+
+        <!-- Detected Product Card (Clean Text-Only Layout without Thumbnail) -->
+        <div class="card product-card">
+          <div class="product-info-wrap">
+            <div class="detect-badge">
+              <span class="status-dot-green" id="productDetectDot"></span>
+              <span class="detect-label" id="productDetectLabel">쿠팡 상품 확인 중...</span>
+            </div>
+            <h2 class="product-title" id="productTitle">상품을 불러오는 중...</h2>
+            <div class="product-meta" id="productMeta">
+              <span class="star-rating" id="productStarRating">★ 0.0</span>
+              <span class="dot-divider" id="productMetaDot">·</span>
+              <span class="review-count-text" id="productReviewCountText">리뷰 확인 중</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Product ID Accordion Link -->
+        <div class="custom-id-toggle-row">
+          <button class="text-link-btn" id="toggleCustomIdBtn">
+            <span>다른 상품 ID나 URL로 분석하기</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </button>
+          <div class="custom-id-box" id="customIdBox" style="display: none;">
+            <div class="input-with-btn">
+              <input type="text" id="customProductIdInput" placeholder="쿠팡 상품 ID 또는 URL 붙여넣기" spellcheck="false">
+              <button class="paste-btn" id="customIdPasteBtn">붙여넣기</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review Count Slider Section (Strictly 10 to 30) -->
+        <div class="section-block">
+          <div class="section-header-row">
+            <label class="section-title">분석할 리뷰 수</label>
+            <span class="count-value-badge" id="reviewCountBadge">30개</span>
+          </div>
+
+          <div class="slider-control-row">
+            <button class="stepper-btn" id="reviewCountMinusBtn" aria-label="감소">−</button>
+            <div class="range-slider-wrap">
+              <input type="range" id="reviewCountSlider" min="10" max="30" step="10" value="30">
+            </div>
+            <button class="stepper-btn" id="reviewCountPlusBtn" aria-label="증가">+</button>
+          </div>
+
+          <div class="slider-ticks-row">
+            <span>10개</span>
+            <span>20개</span>
+            <span>30개</span>
+          </div>
+          <p class="section-caption" id="timeEstCaption">약 5초 · 최적화된 토큰으로 정밀 분석해요</p>
+        </div>
+
+        <!-- Interactive Donut Chart Section: Rating Ratios (5~1 Stars) -->
+        <div class="section-block donut-section">
+          <div class="section-header-row">
+            <label class="section-title">리뷰 선정 비율 (1~5점)</label>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="donut-preset-chips" id="donutPresetChips">
+            <button class="preset-chip active" data-preset="BALANCED">균형 (20%씩)</button>
+            <button class="preset-chip" data-preset="CRITICAL">불만 집중 (1·2점 60%)</button>
+            <button class="preset-chip" data-preset="CUSTOM">직접 지정</button>
+          </div>
+
+          <!-- SVG Donut Chart Card -->
+          <div class="card donut-chart-card">
+            <div class="donut-svg-container">
+              <div class="donut-svg-wrap">
+                <svg class="donut-svg" id="donutSvg" viewBox="0 0 160 160"></svg>
+                <div class="donut-center-info" id="donutCenterInfo">
+                  <span class="donut-center-count" id="donutCenterCount">30개</span>
+                  <span class="donut-center-sub" id="donutCenterSub">100% 분배</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Star Rating Mini Control Chips Grid -->
+            <div class="donut-legend-grid" id="donutLegendGrid">
+              <!-- Dynamically populated in popup.js -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Quality Filter Slider Card (Non-LLM Mechanical Rule Filter) -->
+        <div class="card filter-info-card">
+          <div class="filter-card-header">
+            <div class="shield-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <polyline points="9 12 11 14 15 10" />
+              </svg>
+            </div>
+            <div class="filter-card-text">
+              <div class="filter-title-row">
+                <h3 class="filter-title">리뷰 필터링 강도</h3>
+                <span class="filter-level-badge" id="filterStrengthBadge">2단 (중간)</span>
+              </div>
+              <p class="filter-desc" id="filterStrengthDesc">협찬·제공 단어 포함 리뷰를 기계적으로 걸러내요</p>
+            </div>
+          </div>
+
+          <!-- 3-Stage Slider Bar (1: 안함, 2: 중간, 3: 강함) -->
+          <div class="filter-slider-block">
+            <input type="range" class="step-slider" id="filterStrengthSlider" min="1" max="3" step="1" value="2">
+            <div class="slider-step-labels" id="filterStepLabels">
+              <span class="step-label" data-step="1">1단 (안함)</span>
+              <span class="step-label active" data-step="2">2단 (중간)</span>
+              <span class="step-label" data-step="3">3단 (강함)</span>
+            </div>
+          </div>
+
+        </div>
+
+      </section>
+
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: PROGRESS VIEW (Prototype 2_.png)       -->
+      <!-- ============================================== -->
+      <section class="view-panel" id="viewProgress" style="display: none;">
+
+        <div class="progress-hero">
+          <!-- Donut Spinner Animation -->
+          <div class="donut-spinner-wrap">
+            <div class="donut-spinner"></div>
+          </div>
+
+          <h2 class="progress-hero-title">리뷰를 분석하고 있어요</h2>
+          <p class="progress-hero-subtitle">보통 10초 안팎이면 끝나요</p>
+        </div>
+
+        <!-- Main Progress Bar -->
+        <div class="progress-bar-block">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+          </div>
+          <div class="progress-bar-labels">
+            <span id="progressStepFraction">1 / 4단계</span>
+            <span id="progressPercentText">0%</span>
+          </div>
+        </div>
+
+        <!-- 4-Stage Checklist Card -->
+        <div class="card checklist-card">
+          <!-- Step 1 -->
+          <div class="checklist-item pending" id="stepItem1">
+            <div class="check-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2">
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+            <div class="checklist-name" id="step1Title">리뷰 50개 불러오기</div>
+            <div class="checklist-status" id="step1Status">대기</div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="checklist-item pending" id="stepItem2">
+            <div class="check-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2">
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+            <div class="checklist-name">질 낮은 리뷰 걸러내기</div>
+            <div class="checklist-status" id="step2Status">대기</div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="checklist-item pending" id="stepItem3">
+            <div class="check-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2">
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+            <div class="checklist-name">AI 요약 작성</div>
+            <div class="checklist-status" id="step3Status">대기</div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="checklist-item pending" id="stepItem4">
+            <div class="check-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2">
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+            <div class="checklist-name">결과 정리</div>
+            <div class="checklist-status" id="step4Status">대기</div>
+          </div>
+        </div>
+
+        <!-- Background Tip Box -->
+        <div class="card info-callout-card">
+          <div class="info-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+          </div>
+          <div class="info-text">
+            분석하는 동안 다른 탭을 둘러봐도 괜찮아요. 끝나면 확장 프로그램 아이콘에 표시해 드려요.
+          </div>
+        </div>
+
+      </section>
+
+
+      <!-- ============================================== -->
+      <!-- VIEW 3: RESULT VIEW (Prototype 3_.png)         -->
+      <!-- ============================================== -->
+      <section class="view-panel" id="viewResult" style="display: none;">
+
+        <!-- Top Status Banner Card -->
+        <div class="card banner-stat-card">
+          <div class="banner-stat-left">
+            <div class="banner-shield-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <polyline points="9 12 11 14 15 10" />
+              </svg>
+            </div>
+            <div class="banner-stat-texts">
+              <h3 class="banner-stat-title" id="resultFilterStatTitle">리뷰 요약 결과</h3>
+              <p class="banner-stat-subtitle" id="resultFilterStatSub">균형 분석 · 방금 전</p>
+            </div>
+          </div>
+          <button class="banner-link-btn" id="openExcludedBtn">
+            <span>제외 내역</span>
+          </button>
+        </div>
+
+        <!-- Most Mentioned Keywords Card (많이 언급된 단어) -->
+        <div class="card keywords-card">
+          <div class="keywords-card-header">
+            <div class="card-pill-tag">많이 언급된 단어</div>
+            <span class="keywords-sub-caption">실구매자 리뷰 빈출 키워드</span>
+          </div>
+          <div class="keywords-chips-wrap" id="keywordChipsList">
+            <!-- Keyword chips dynamically injected here -->
+          </div>
+        </div>
+
+        <!-- Pros (좋았던 점) Card -->
+        <div class="card metrics-card pros-card">
+          <div class="metrics-card-header">
+            <h4 class="metrics-card-title text-pros">좋았던 점</h4>
+            <span class="metrics-col-label">언급 비율</span>
+          </div>
+
+          <div class="metrics-list" id="prosList">
+            <!-- Pros Items injected here -->
+            <div class="metric-row">
+              <div class="metric-header-line">
+                <span class="metric-item-title">하나로 끝나는 편리함</span>
+                <span class="metric-item-pct pros-pct">68%</span>
+              </div>
+              <div class="metric-bar-track">
+                <div class="metric-bar-fill pros-fill" style="width: 68%;"></div>
+              </div>
+              <p class="metric-desc">세안·면도 후 이것 하나만 바르면 돼서 바쁜 아침에 편하다는 평이 가장 많아요.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cons (아쉬웠던 점) Card -->
+        <div class="card metrics-card cons-card">
+          <div class="metrics-card-header">
+            <h4 class="metrics-card-title text-cons">아쉬웠던 점</h4>
+            <span class="metrics-col-label">언급 비율</span>
+          </div>
+
+          <div class="metrics-list" id="consList">
+            <!-- Cons Items injected here -->
+            <div class="metric-row">
+              <div class="metric-header-line">
+                <span class="metric-item-title">건성 피부엔 보습 부족</span>
+                <span class="metric-item-pct cons-pct">22%</span>
+              </div>
+              <div class="metric-bar-track">
+                <div class="metric-bar-fill cons-fill" style="width: 22%;"></div>
+              </div>
+              <p class="metric-desc">겨울이나 건조한 피부는 크림을 따로 덧발라야 했다는 의견이 있어요.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Token Saving Stats (Optional/Dev) -->
+        <div class="dev-token-badge-wrap" id="tokenSavingsFooter" style="display: none;">
+          <span class="token-saving-pill" id="tokenSavingBadge">⚡ 토큰 94.0% 절감 (24.8KB → 1.5KB)</span>
+        </div>
+
+      </section>
+
+
+      <!-- ============================================== -->
+      <!-- VIEW 4: EXCLUDED REVIEWS VIEW (Prototype 4_.png)-->
+      <!-- ============================================== -->
+      <section class="view-panel" id="viewExcluded" style="display: none;">
+
+        <!-- Excluded Category Stats Grid (Strictly Sponsored & Excessive Emojis) -->
+        <div class="stats-2-grid">
+          <div class="stat-grid-cell">
+            <span class="cell-label">체험단·협찬·제공</span>
+            <span class="cell-value" id="statSponsoredCount">0</span>
+          </div>
+          <div class="stat-grid-cell">
+            <span class="cell-label">다수 이모지(3개+)</span>
+            <span class="cell-value" id="statEmojiCount">0</span>
+          </div>
+        </div>
+
+        <!-- Re-include Excluded Toggle Card -->
+        <div class="card toggle-option-card">
+          <div class="toggle-text-wrap">
+            <h3 class="toggle-title" id="toggleOptionTitle">제외된 리뷰 전체 선택</h3>
+            <p class="toggle-sub" id="toggleOptionSub">선택된 리뷰들을 요약에 포함시켜요</p>
+          </div>
+          <label class="switch-ui">
+            <input type="checkbox" id="includeExcludedToggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <!-- Excluded Items List -->
+        <div class="excluded-cards-list" id="excludedCardsList">
+          <!-- Dynamically populated based on filter results -->
+        </div>
+
+        <!-- More Button -->
+        <div class="more-row">
+          <button class="text-link-btn" id="loadMoreExcludedBtn">5개 더 보기</button>
+        </div>
+
+      </section>
+
+
+      <!-- ============================================== -->
+      <!-- VIEW 5: SETTINGS VIEW (Prototype 5_.png)       -->
+      <!-- ============================================== -->
+      <section class="view-panel" id="viewSettings" style="display: none;">
+
+        <!-- AI Model Radios (Strictly gemini-3.5-flash-lite & gemini-3.1-flash-lite) -->
+        <div class="section-block">
+          <label class="section-title">AI 모델</label>
+          <div class="model-cards-group" id="modelCardsGroup">
+
+            <label class="model-select-card active" data-model="gemini-3.5-flash-lite">
+              <input type="radio" name="selectedAiModel" value="gemini-3.5-flash-lite" checked>
+              <div class="model-card-content">
+                <div class="model-title-row">
+                  <span class="model-name">Gemini 3.5 Flash-Lite</span>
+                  <span class="badge-recommend">추천</span>
+                </div>
+                <p class="model-desc">최신 고속 초경량 모델로 빠르고 스마트하게 리뷰를 분석해요.</p>
+              </div>
+            </label>
+
+            <label class="model-select-card" data-model="gemini-3.1-flash-lite">
+              <input type="radio" name="selectedAiModel" value="gemini-3.1-flash-lite">
+              <div class="model-card-content">
+                <div class="model-title-row">
+                  <span class="model-name">Gemini 3.1 Flash-Lite</span>
+                </div>
+                <p class="model-desc">안정적인 성능과 효율적인 토큰 처리 속도를 제공해요.</p>
+              </div>
+            </label>
+
+          </div>
+        </div>
+
+      </section>
+
+    </div><!-- /.view-viewport -->
+
+
+    <!-- ============================================== -->
+    <!-- GLOBAL FOOTER ACTION BARS                      -->
+    <!-- ============================================== -->
+
+    <!-- Main View Footer Bar (1_.png) -->
+    <div class="sticky-footer" id="mainFooterBar" style="display: block;">
+      <button class="btn btn-primary-full" id="summarizeBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12z" />
+        </svg>
+        <span>리뷰 요약하기</span>
+      </button>
+    </div>
+
+    <!-- Progress View Footer Bar (2_.png) -->
+    <div class="sticky-footer" id="progressFooterBar" style="display: none;">
+      <button class="btn btn-secondary-full" id="cancelProgressBtn">
+        <span>분석 취소</span>
+      </button>
+    </div>
+
+    <!-- Result View Footer Bar (3_.png) -->
+    <div class="sticky-footer two-btn-footer" id="resultFooterBar" style="display: none;">
+      <button class="btn btn-outline-half" id="copyResultBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+        </svg>
+        <span id="copyBtnText">요약 복사</span>
+      </button>
+      <button class="btn btn-outline-half" id="reAnalyzeBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+        </svg>
+        <span>다시 분석</span>
+      </button>
+    </div>
+
+    <!-- Settings View Footer Bar (5_.png) -->
+    <div class="sticky-footer" id="settingsFooterBar" style="display: none;">
+      <button class="btn btn-primary-full" id="saveSettingsBtn">
+        <span>설정 저장하기</span>
+      </button>
+    </div>
+
+    <!-- Excluded View Footer Bar -->
+    <div class="sticky-footer" id="excludedFooterBar" style="display: none;">
+      <button class="btn btn-primary-full" id="reSummarizeWithSelectedBtn" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3" />
+        </svg>
+        <span id="reSummarizeBtnText">포함할 리뷰를 선택해 주세요</span>
+      </button>
+    </div>
+
+
+    <!-- ============================================== -->
+    <!-- TESTER AUTHENTICATION MODAL -->
+    <!-- ============================================== -->
+    <div class="auth-overlay" id="authModal" style="display: none;">
+      <div class="auth-modal-card">
+        <div class="auth-badge-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1e3a8a" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
+        <h2 class="auth-modal-title">테스터 전용 접근 인증</h2>
+        <p class="auth-modal-desc">
+          이 확장 프로그램은 비공개 프로토타입입니다.<br>
+          관리자로부터 전달받은 <strong>테스터 비밀번호</strong>를 입력하여 서비스를 잠금 해제하세요.
+        </p>
+
+        <form class="auth-form" id="authForm">
+          <div class="auth-input-wrap">
+            <input type="password" id="authPassphraseInput" placeholder="테스터 비밀번호 입력" autocomplete="off">
+            <button type="button" class="eye-toggle-btn" id="toggleAuthPassVisibility" aria-label="비밀번호 보기">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+
+          <label class="auth-check-row">
+            <input type="checkbox" id="rememberAuthCheck" checked>
+            <span>이 브라우저에서 인증 유지</span>
+          </label>
+
+          <button type="submit" class="btn btn-primary-full auth-submit-btn" id="authSubmitBtn">
+            <span>잠금 해제 및 시작하기</span>
+          </button>
+
+          <div class="auth-error-msg" id="authErrorMsg" style="display: none;"></div>
+        </form>
+      </div>
+    </div>
+
+  </div><!-- /#appContainer -->
+
+  <script src="crypto_util.js"></script>
+  <script src="encrypted_secret.js"></script>
+  <script src="sample_data.js"></script>
+  <script src="utils.js"></script>
+  <script src="gemini.js"></script>
+  <script src="popup.js"></script>
+</body>
+
+</html>

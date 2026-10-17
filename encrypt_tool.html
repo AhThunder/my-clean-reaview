@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>🔐 관리자용: API 키 암호화 및 번들 생성 도구</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 30px;
+      max-width: 650px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    h1 { font-size: 20px; color: #fff; margin-bottom: 8px; }
+    p { font-size: 13px; color: #94a3b8; margin-bottom: 20px; }
+    .card {
+      background: #1e293b;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    label { display: block; font-size: 12px; font-weight: 600; color: #cbd5e1; margin-bottom: 6px; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      box-sizing: border-box;
+      background: #0b0f19;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: #fff;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      outline: none;
+    }
+    input:focus { border-color: #6366f1; }
+    button {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover { opacity: 0.9; }
+    textarea {
+      width: 100%;
+      height: 140px;
+      box-sizing: border-box;
+      background: #0b0f19;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 10px;
+      margin-top: 10px;
+      outline: none;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔐 관리자용: Google API 키 암호화 도구</h1>
+  <p>테스터에게 배포할 암호키(Passphrase)를 설정하고, 생성된 코드를 <code>encrypted_secret.js</code>에 붙여넣으세요.</p>
+
+  <div class="card">
+    <label for="apiKey">1. 구글 AI 스튜디오 API Key</label>
+    <input type="password" id="apiKey" value="">
+
+    <label for="passphrase">2. 테스터들에게 공유할 암호키 (Passphrase)</label>
+    <input type="text" id="passphrase" value="">
+
+    <button id="generateBtn">⚡ 암호화 코드 생성하기</button>
+
+    <div id="outputArea" style="display: none; margin-top: 20px;">
+      <span class="badge">생성 완료! 아래 코드를 복사하여 encrypted_secret.js 파일에 덮어쓰세요.</span>
+      <textarea id="resultCode" readonly></textarea>
+    </div>
+  </div>
+
+  <script src="crypto_util.js"></script>
+  <script>
+    document.getElementById('generateBtn').addEventListener('click', async () => {
+      const key = document.getElementById('apiKey').value.trim();
+      const pass = document.getElementById('passphrase').value.trim();
+
+      if (!key || !pass) {
+        alert('API 키와 암호키를 모두 입력해주세요.');
+        return;
+      }
+
+      try {
+        const encrypted = await encryptApiKey(key, pass);
+        const code = `/**
+ * Auto-generated Encrypted Secret Configuration
+ * Encrypted using PBKDF2 (SHA-256, 10,000 iter) + AES-CBC (256-bit) + HMAC-SHA256.
+ * The plain API key is NOT stored anywhere in plaintext.
+ * Default Master Passphrase for testers: ${pass}
+ */
+const ENCRYPTED_SECRET_CONFIG = {
+  salt: "${encrypted.salt}",
+  iv: "${encrypted.iv}",
+  ciphertext: "${encrypted.ciphertext}",
+  hmac: "${encrypted.hmac}",
+  algorithm: "AES-CBC",
+  iterations: ${encrypted.iterations},
+  defaultPassphrase: "${pass}"
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ENCRYPTED_SECRET_CONFIG;
+}
+`;
+        document.getElementById('resultCode').value = code;
+        document.getElementById('outputArea').style.display = 'block';
+      } catch (err) {
+        alert('암호화 실패: ' + err.message);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+/**
+ * Coupang In-Page Stylesheet
+ * Faithfully matches Prototype UI 0___.png:
+ * - Floating Pill Button: [Icon] 리뷰 요약 25,646
+ * - Smooth Side Drawer Panel
+ */
+
+/* Floating Action Button (Prototype 0___.png) */
+.coupang-ai-pill-btn {
+  position: fixed !important;
+  bottom: 32px !important;
+  right: 36px !important;
+  z-index: 2147483640 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  background-color: #1e3a8a !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  padding: 12px 20px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif !important;
+  font-size: 14.5px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  box-shadow: 0 8px 24px rgba(30, 58, 138, 0.35), 0 2px 6px rgba(0, 0, 0, 0.12) !important;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, background-color 0.18s ease !important;
+  outline: none !important;
+  user-select: none !important;
+}
+
+.coupang-ai-pill-btn:hover {
+  background-color: #172554 !important;
+  transform: translateY(-2px) scale(1.02) !important;
+  box-shadow: 0 12px 28px rgba(30, 58, 138, 0.42), 0 4px 10px rgba(0, 0, 0, 0.15) !important;
+}
+
+.coupang-ai-pill-btn:active {
+  transform: translateY(0) scale(0.98) !important;
+  box-shadow: 0 4px 14px rgba(30, 58, 138, 0.3) !important;
+}
+
+.coupang-ai-pill-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.coupang-ai-pill-label {
+  letter-spacing: -0.2px !important;
+}
+
+.coupang-ai-pill-badge {
+  background-color: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  border-radius: 9999px !important;
+  margin-left: 2px !important;
+  letter-spacing: 0 !important;
+}
+
+/* Drawer Backdrop */
+.coupang-ai-side-backdrop {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(15, 23, 42, 0.35) !important;
+  backdrop-filter: blur(2px) !important;
+  z-index: 2147483645 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.28s ease !important;
+}
+
+.coupang-ai-side-backdrop.visible {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Side Drawer Panel */
+.coupang-ai-side-drawer {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  width: 440px !important;
+  height: 100vh !important;
+  background: #ffffff !important;
+  z-index: 2147483646 !important;
+  box-shadow: -8px 0 32px rgba(15, 23, 42, 0.16) !important;
+  transform: translateX(100%) !important;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.coupang-ai-side-drawer.open {
+  transform: translateX(0) !important;
+}
+
+.coupang-ai-drawer-frame-wrap {
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+}
+
+.coupang-ai-iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: none !important;
+  background: transparent !important;
+  display: block !important;
+}
