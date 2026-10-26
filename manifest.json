@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "쿠팡 AI 리뷰 요약기 (Coupang Review Summarizer)",
-  "version": "1.0.0",
-  "description": "쿠팡 상품 리뷰의 content 본문만 기계적으로 추출하여 Gemini LLM(gemini-2.5-flash-lite)으로 토큰을 최대 절약하며 스마트하게 요약합니다.",
+  "name": "MyCleanReview",
+  "version": "1.1.0",
+  "description": "쿠팡 상품 리뷰를 사용자의 설정에 맞게 추출하여 LLM을 활용해 스마트하게 요약합니다.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -11,7 +11,7 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icons/icon48.png",
-    "default_title": "쿠팡 AI 리뷰 요약"
+    "default_title": "MyCleanReview"
   },
   "background": {
     "service_worker": "background.js"
