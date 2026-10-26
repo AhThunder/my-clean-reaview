@@ -27,7 +27,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     includeExcluded: false,
     selectedExcludedIndices: new Set(),
     analysisCancelRequested: false,
-    currentResultData: null
+    currentResultData: null,
+    generatedKeywords: null,
+    selectedKeywordIndex: 0
   };
 
   // Star config for donut chart & legend
@@ -391,6 +393,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ----------------------------------------------------
   // 4. Product Tab Detection
   // ----------------------------------------------------
+  // Keywords Preview DOM refs (must be declared before renderDetectedProduct)
+  const keywordsPreviewCard = document.getElementById('keywordsPreviewCard');
+  const keywordsPreviewChips = document.getElementById('keywordsPreviewChips');
+  const keywordsPreviewStatus = document.getElementById('keywordsPreviewStatus');
+
   async function detectCoupangProductOnTab() {
     if (!isExtensionEnv || !chrome.tabs) {
       renderDetectedProduct();
@@ -483,6 +490,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btnSpan = summarizeBtn.querySelector('span');
         if (btnSpan) btnSpan.textContent = '리뷰 요약하기';
       }
+
+      // 상품 감지 성공 시 키워드 자동 생성
+      triggerKeywordGeneration();
+
     } else {
       if (productDetectDot) {
         productDetectDot.className = 'status-dot-gray';
@@ -515,7 +526,74 @@ document.addEventListener('DOMContentLoaded', async () => {
         const btnSpan = summarizeBtn.querySelector('span');
         if (btnSpan) btnSpan.textContent = '쿠팡 상품 페이지에서 이용 가능';
       }
+      // 상품 미감지 시 키워드 카드 숨기기
+      if (keywordsPreviewCard) keywordsPreviewCard.style.display = 'none';
     }
+  }
+
+  // Keywords Preview on Landing Page
+  async function triggerKeywordGeneration() {
+    if (!state.productTitle || state.generatedKeywords) return;
+
+    // Show card with loading state
+    if (keywordsPreviewCard) keywordsPreviewCard.style.display = '';
+    if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = '생성 중...';
+
+    try {
+      let keywords = null;
+      if (isExtensionEnv) {
+        const kwResponse = await chrome.runtime.sendMessage({
+          action: 'GENERATE_KEYWORDS',
+          payload: { productTitle: state.productTitle }
+        });
+        if (kwResponse && kwResponse.success && kwResponse.data && kwResponse.data.keywords) {
+          keywords = kwResponse.data.keywords;
+        }
+      } else {
+        await sleep(800);
+        keywords = ['보습력', '흡수력', '가성비', '향/냄새', '용량', '자극/트러블'];
+      }
+
+      if (keywords && keywords.length > 0) {
+        state.generatedKeywords = keywords;
+        if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = `${keywords.length}개 생성됨`;
+        renderKeywordPreviewChips(keywords);
+      } else {
+        if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = '생성 실패';
+        if (keywordsPreviewChips) keywordsPreviewChips.innerHTML = '<p style="font-size:11px;color:#94a3b8;margin:4px 0;">키워드를 생성하지 못했어요. 리뷰 요약을 직접 시작해 주세요.</p>';
+      }
+    } catch (e) {
+      console.warn('Keyword generation error:', e);
+      if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = '생성 실패';
+    }
+  }
+
+  function renderKeywordPreviewChips(keywords) {
+    if (!keywordsPreviewChips) return;
+    keywordsPreviewChips.innerHTML = keywords.map((kw, idx) => `
+      <button class="keyword-preview-chip" data-keyword-index="${idx}" title="${escapeHtml(kw)} 키워드로 리뷰 분석">
+        <span class="keyword-preview-word">${escapeHtml(kw)}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+    `).join('');
+
+    // 키워드 클릭 → 해당 키워드 기준 리뷰 분석 트리거
+    keywordsPreviewChips.addEventListener('click', (e) => {
+      const chip = e.target.closest('.keyword-preview-chip');
+      if (!chip) return;
+      const idx = parseInt(chip.dataset.keywordIndex, 10);
+      if (isNaN(idx) || !state.generatedKeywords || !state.generatedKeywords[idx]) return;
+
+      if (!state.productId) {
+        alert('쿠팡 상품 페이지에서 열어 주세요.');
+        return;
+      }
+
+      state.selectedKeywordIndex = idx;
+      startAnalysis(false);
+    });
   }
 
   // Toggle Custom Product ID Box
@@ -549,6 +627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.productTitle = `수동 지정 상품 (ID: ${state.productId})`;
       state.productReviewCount = 0;
       state.productRating = 0;
+      state.generatedKeywords = null; // 상품 변경 시 키워드 리셋
       renderDetectedProduct();
     } else {
       alert('유효한 쿠팡 상품 URL 또는 상품 번호(ID)를 입력해 주세요.');
@@ -954,9 +1033,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       const excludedCount = prepResponse.data.excludedCount ?? 0;
       markStepDone(stepItem2, `${excludedCount}개 제외`, true);
 
-      // Step 3: AI 요약 작성 시작 (Gemini API 호출, 3~5초 소요)
+      // Step 3: AI 요약 작성 시작 (메인 화면에서 미리 생성된 키워드 기반)
       setProgressUi(3, 70, '3 / 4단계');
       markStepActive(stepItem3, '작성 중...');
+
+      // 메인 화면에서 미리 생성해둔 키워드를 사용
+      const generatedKeywords = state.generatedKeywords || null;
 
       let response;
       if (isExtensionEnv) {
@@ -970,6 +1052,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               productRating: state.productRating,
               productReviewCount: state.productReviewCount
             },
+            generatedKeywords,
             scoreRatios: state.scoreRatios,
             analysisMode: state.analysisMode,
             includeExcluded: state.includeExcluded,
@@ -992,6 +1075,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const resData = response.data;
+      resData.generatedKeywords = generatedKeywords;
       state.currentResultData = resData;
 
       // Cache session for persistence across popup close
@@ -1146,32 +1230,50 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     resultFilterStatSub.textContent = `${ratioLabel} · 무작위 추출 · 방금 전`;
 
-    // Most Mentioned Keywords (많이 언급된 단어)
-    const keywords = (structured.topKeywords && structured.topKeywords.length > 0) ? structured.topKeywords : [
-      { word: '보습력', percentage: 78, sentiment: 'neutral' },
-      { word: '끈적임', percentage: 54, sentiment: 'negative' },
-      { word: '흡수력', percentage: 48, sentiment: 'positive' },
-      { word: '가성비', percentage: 42, sentiment: 'positive' },
-      { word: '향/냄새', percentage: 35, sentiment: 'neutral' },
-      { word: '용량', percentage: 20, sentiment: 'negative' }
-    ];
+    // Keyword-based analysis results
+    const keywordAnalysis = structured.keywordAnalysis || [];
+    const selectedIdx = state.selectedKeywordIndex || 0;
 
+    const keywordDetailWrap = document.getElementById('keywordDetailWrap');
+    const keywordPositiveDesc = document.getElementById('keywordPositiveDesc');
+    const keywordNegativeDesc = document.getElementById('keywordNegativeDesc');
+
+    // Render keyword chips in result view
     if (keywordChipsList) {
-      keywordChipsList.innerHTML = keywords.map(kw => `
-        <span class="keyword-chip ${escapeHtml(kw.sentiment || 'neutral')}">
+      keywordChipsList.innerHTML = keywordAnalysis.map((kw, idx) => `
+        <span class="keyword-chip ${escapeHtml(kw.sentiment || 'neutral')}${idx === selectedIdx ? ' active' : ''}" data-keyword-index="${idx}">
           <span class="keyword-word">${escapeHtml(kw.word)}</span>
           <span class="keyword-pct">${kw.percentage}%</span>
         </span>
       `).join('');
+
+      // Chip click handler — switch displayed keyword detail
+      keywordChipsList.addEventListener('click', (e) => {
+        const chip = e.target.closest('.keyword-chip');
+        if (!chip) return;
+        const idx = parseInt(chip.dataset.keywordIndex, 10);
+        if (isNaN(idx) || !keywordAnalysis[idx]) return;
+
+        keywordChipsList.querySelectorAll('.keyword-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        showKeywordDetail(keywordAnalysis[idx]);
+      });
     }
 
-    // Pros
-    const pros = structured.positivePoints || [
-      { title: '하나로 끝나는 편리함', percentage: 68, description: '세안·면도 후 이것 하나만 바르면 돼서 바쁜 아침에 편하다는 평이 가장 많아요.' },
-      { title: '끈적임 없는 산뜻한 흡수', percentage: 54, description: '젤 제형이라 빠르게 스며들고 번들거림이 적어요.' },
-      { title: '은은하고 무난한 향', percentage: 31, description: '진한 남성 화장품 향이 아니라 호불호가 적어요.' }
-    ];
+    function showKeywordDetail(kw) {
+      if (!keywordDetailWrap) return;
+      keywordDetailWrap.style.display = '';
+      if (keywordPositiveDesc) keywordPositiveDesc.textContent = kw.positiveSummary || '관련 긍정 리뷰가 없습니다.';
+      if (keywordNegativeDesc) keywordNegativeDesc.textContent = kw.negativeSummary || '관련 부정 리뷰가 없습니다.';
+    }
 
+    // Show selected keyword's detail by default
+    if (keywordAnalysis[selectedIdx]) {
+      showKeywordDetail(keywordAnalysis[selectedIdx]);
+    }
+
+    // Pros (좋았던 점) — 기존 상세 리스트
+    const pros = structured.positivePoints || [];
     prosList.innerHTML = pros.map(item => `
       <div class="metric-row">
         <div class="metric-header-line">
@@ -1185,13 +1287,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `).join('');
 
-    // Cons
-    const cons = structured.negativePoints || [
-      { title: '건성 피부엔 보습 부족', percentage: 22, description: '겨울이나 건조한 피부는 크림을 따로 덧발라야 했다는 의견이 있어요.' },
-      { title: '생각보다 빨리 줄어드는 양', percentage: 12, description: '넉넉히 쓰면 한두 달이면 다 쓴다는 평이 있어요.' },
-      { title: '향이 금방 사라짐', percentage: 7, description: '향을 기대했다면 지속력이 짧게 느껴질 수 있어요.' }
-    ];
-
+    // Cons (아쉬웠던 점) — 기존 상세 리스트
+    const cons = structured.negativePoints || [];
     consList.innerHTML = cons.map(item => `
       <div class="metric-row">
         <div class="metric-header-line">
@@ -1463,6 +1560,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               productRating: state.productRating,
               productReviewCount: state.productReviewCount
             },
+            generatedKeywords: state.currentResultData.generatedKeywords || null,
             scoreRatios: state.scoreRatios,
             analysisMode: state.analysisMode,
             includeExcluded: remainingExcluded.length === 0,
@@ -1484,6 +1582,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const resData = response.data;
+      resData.generatedKeywords = state.currentResultData.generatedKeywords || null;
       state.currentResultData = resData;
       state.selectedExcludedIndices.clear();
 

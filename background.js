@@ -343,13 +343,27 @@ async function prepareReviewsPipeline(extractedDataOrRawJson, analysisMode = 'BA
 }
 
 /**
+ * 1.5단계 파이프라인: 상품명 기반 핵심 키워드 6개 생성 (1차 LLM 호출)
+ */
+async function generateKeywordsPipeline(productTitle) {
+  const prompt = buildKeywordGenerationPrompt(productTitle);
+  const geminiResult = await callGeminiApi(prompt);
+  const keywords = parseKeywordResponse(geminiResult.text);
+  return {
+    success: true,
+    keywords: keywords || [],
+    usedModel: geminiResult.usedModel
+  };
+}
+
+/**
  * 2단계 파이프라인: 프롬프트 구성 및 Gemini API 호출 (3~5초 소요)
  */
-async function generateSummaryPipeline(preparedData, analysisMode = 'BALANCE', includeExcluded = false) {
+async function generateSummaryPipeline(preparedData, analysisMode = 'BALANCE', includeExcluded = false, generatedKeywords = null) {
   const { extracted, reviewsToAnalyze, effectiveExcludedCount, effectiveExcludedList, effectiveFilterStats } = preparedData;
 
-  // 4. Build strong critical persona prompt
-  const prompt = buildGeminiPrompt(reviewsToAnalyze, extracted.ratingSummary);
+  // 4. Build strong critical persona prompt (with pre-generated keywords if available)
+  const prompt = buildGeminiPrompt(reviewsToAnalyze, extracted.ratingSummary, generatedKeywords);
 
   // 5. Call Gemini API
   const geminiResult = await callGeminiApi(prompt);
@@ -479,14 +493,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           }
         });
 
-      // 3.6 Generate AI Summary from Prepared Reviews (Step 3 & Step 4: LLM 호출 및 세션 캐싱)
+      // 3.55 Generate Product Keywords (1차 LLM 호출: 상품 키워드 생성)
+      } else if (action === 'GENERATE_KEYWORDS') {
+        const { productTitle } = payload || {};
+        if (!productTitle) {
+          throw new Error('상품명이 전달되지 않았습니다.');
+        }
+        const result = await generateKeywordsPipeline(productTitle);
+        sendResponse({ success: true, data: result });
+
+      // 3.6 Generate AI Summary from Prepared Reviews (Step 4 & Step 5: LLM 호출 및 세션 캐싱)
       } else if (action === 'GENERATE_SUMMARY') {
-        const { preparedData, analysisMode = 'BALANCE', includeExcluded = false, productId = 'unknown', productInfo = {} } = payload || {};
+        const { preparedData, analysisMode = 'BALANCE', includeExcluded = false, productId = 'unknown', productInfo = {}, generatedKeywords = null } = payload || {};
         if (!preparedData) {
           throw new Error('요약할 정제 리뷰 데이터가 전달되지 않았습니다.');
         }
 
-        const result = await generateSummaryPipeline(preparedData, analysisMode, includeExcluded);
+        const result = await generateSummaryPipeline(preparedData, analysisMode, includeExcluded, generatedKeywords);
 
         // Cache lastAnalysisSession in storage for persistence across popup close
         try {
