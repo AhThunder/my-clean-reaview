@@ -252,7 +252,31 @@ function formatBytes(bytes) {
 /**
  * Build Strong Critical Persona Prompt for Gemini LLM
  */
-function buildGeminiPrompt(cleanReviews, ratingSummary = null) {
+/**
+ * 1차 LLM 호출: 상품명을 보고 해당 상품 평가에 적합한 핵심 키워드 6개 생성
+ */
+function buildKeywordGenerationPrompt(productTitle) {
+  return `당신은 e커머스 상품 분석 전문가입니다.
+아래 상품명을 보고, 소비자가 이 상품을 구매할 때 가장 중요하게 평가하는 핵심 키워드를 정확히 6개 생성하세요.
+
+[규칙]
+- 해당 상품 카테고리에서 실구매자들이 실제로 자주 언급하는 실사용 관련 핵심 어휘여야 합니다.
+- 너무 일반적인 단어(예: "품질", "만족도")는 피하고, 구체적이고 상품 특성에 맞는 키워드를 선택하세요.
+- 긍정/부정 모두 다뤄질 수 있는 중립적 평가 기준 키워드여야 합니다.
+
+[상품명]
+${productTitle}
+
+반드시 아래 JSON 형식으로만 응답하세요. 마크다운 기호 없이 오직 유효한 JSON 문자열만 출력하세요:
+{
+  "keywords": ["보습력", "흡수력", "가성비", "향/냄새", "용량", "자극/트러블"]
+}`;
+}
+
+/**
+ * 2차 LLM 호출: 생성된 키워드를 기반으로 리뷰를 분석하여 키워드별 부정 요약 + 장단점 도출
+ */
+function buildGeminiPrompt(cleanReviews, ratingSummary = null, generatedKeywords = null) {
   let contextInfo = '';
   if (ratingSummary) {
     contextInfo = `[상품 평점 정보] 총 평점: ${ratingSummary.ratingAverage || 0}점 / 5.0 (총 ${ratingSummary.ratingCount || 0}개 리뷰)\n`;
@@ -260,27 +284,70 @@ function buildGeminiPrompt(cleanReviews, ratingSummary = null) {
 
   const reviewLines = cleanReviews.map((r, i) => `[리뷰 ${i + 1} | 평점 ${r.rating}점]: ${r.content}`).join('\n\n');
 
-  return `당신은 e커머스 상품의 실구매자 리뷰를 객관적이고 냉철하게 분석하는 전문 품질 데이터 분석관입니다.
-소비자가 스스로 제품의 실체를 쉽게 판단할 수 있도록 돕는 것이 목적이며, AI의 주관적인 평가 문장을 주입하지 않고 리뷰 데이터에 근거한 객관적인 사실과 키워드를 전달해야 합니다.
+  let keywordInstruction = '';
+  if (generatedKeywords && generatedKeywords.length > 0) {
+    keywordInstruction = `\n[사전 생성된 핵심 키워드 6개]\n${generatedKeywords.join(', ')}\n\n위 키워드는 이 상품 유형에 적합한 평가 기준으로 사전에 선정되었습니다.\n`;
+  }
 
+  return `당신은 e커머스 상품의 실구매자 리뷰를 객관적이고 냉철하게 분석하는 전문 품질 데이터 분석관입니다.
+소비자가 스스로 제품의 실체를 쉽게 판단할 수 있도록 돕는 것이 목적이며, AI의 주관적인 평가 문장을 주입하지 않고 리뷰 데이터에 근거한 객관적인 사실만 전달해야 합니다.
+${keywordInstruction}
 [분석 지침]
-1. 구매자들의 리뷰 본문에서 **가장 많이 언급된 핵심 키워드/단어(6~8개)**를 객관적으로 추출하세요. (예: 보습력, 끈적임, 가성비, 흡수력, 향/냄새, 용량, 트러블 등 실사용 관련 핵심 어휘)
-2. 각 키워드가 전체 리뷰 중 언급된 대략적 비율(percentage)과 반응 성향(positive, negative, neutral)을 정확히 분류하세요.
-3. 아쉬웠던 점(negativePoints)을 집중 조명하여, 5점 리뷰 속의 미세한 불편과 실사용 결함, 호불호 요소를 가감 없이 도출하세요.
-4. 좋았던 점(positivePoints)은 과장된 마케팅 문구를 배제하고 검증된 실사용 팩트 위주로 간결하게 정리하세요.
+1. 위 핵심 키워드 6개 각각에 대해, 전체 리뷰에서 해당 키워드와 관련된 **긍정 리뷰 요약(positiveSummary)**과 **부정 리뷰 요약(negativeSummary)**을 각각 1~3문장으로 작성하세요.
+2. 각 키워드의 전체 리뷰 중 언급 비율(percentage)과 반응 성향(positive, negative, neutral)을 분류하세요.
+3. 키워드 분석과 별도로, 전체 리뷰를 종합하여 **아쉬웠던 점(negativePoints) 3개**와 **좋았던 점(positivePoints) 2~3개**를 도출하세요.
+4. 아쉬웠던 점은 5점 리뷰 속 미세한 불편과 실사용 결함, 호불호 요소까지 가감 없이 도출하세요.
+5. 좋았던 점은 과장된 마케팅 문구를 배제하고 검증된 실사용 팩트 위주로 간결하게 정리하세요.
+6. 리뷰에서 해당 키워드 언급이 거의 없는 경우에도 관련 가능한 내용을 찾아 작성하세요.
 
 ${contextInfo}[실구매자 무작위 리뷰 목록]
 ${reviewLines}
 
 반드시 아래 JSON 형식으로만 응답해야 합니다. 마크다운 기호 없이 오직 유효한 JSON 문자열만 출력하세요:
 {
-  "topKeywords": [
-    { "word": "보습력", "percentage": 78, "sentiment": "neutral" },
-    { "word": "끈적임", "percentage": 54, "sentiment": "negative" },
-    { "word": "흡수력", "percentage": 48, "sentiment": "positive" },
-    { "word": "가성비", "percentage": 42, "sentiment": "positive" },
-    { "word": "향/냄새", "percentage": 35, "sentiment": "neutral" },
-    { "word": "용량", "percentage": 20, "sentiment": "negative" }
+  "keywordAnalysis": [
+    {
+      "word": "보습력",
+      "percentage": 78,
+      "sentiment": "positive",
+      "positiveSummary": "대다수 사용자가 세안 후 보습감이 충분하다고 평가. 하루 종일 당김 없이 촉촉함이 유지된다는 만족 후기가 많음.",
+      "negativeSummary": "건조한 계절이나 건성 피부 사용자들은 보습력이 기대에 미치지 못한다는 의견이 다수. 크림을 덧발라야 한다는 불만도 있음."
+    },
+    {
+      "word": "끈적임",
+      "percentage": 54,
+      "sentiment": "negative",
+      "positiveSummary": "지성 피부 사용자는 산뜻한 마무리감에 만족. 흡수 후 끈적임이 빠르게 사라진다는 평도 존재.",
+      "negativeSummary": "바른 직후 끈적거림이 오래 남아 불쾌하다는 불만이 반복적으로 등장."
+    },
+    {
+      "word": "흡수력",
+      "percentage": 48,
+      "sentiment": "positive",
+      "positiveSummary": "소량으로도 빠르게 흡수되어 바쁜 아침에 편하다는 의견이 주류.",
+      "negativeSummary": "넉넉히 바르면 겉돌아 답답하다는 의견 있음."
+    },
+    {
+      "word": "가성비",
+      "percentage": 42,
+      "sentiment": "positive",
+      "positiveSummary": "가격 대비 용량과 성능이 만족스럽다는 평이 다수.",
+      "negativeSummary": "용량 대비 가격이 오르면서 이전만큼의 가성비를 못 느낀다는 평이 일부 존재."
+    },
+    {
+      "word": "향/냄새",
+      "percentage": 35,
+      "sentiment": "neutral",
+      "positiveSummary": "은은하고 무난한 향으로 호불호가 적다는 긍정 평가.",
+      "negativeSummary": "향이 너무 강하거나 인위적이라는 의견과, 지속력이 짧다는 상반된 불만."
+    },
+    {
+      "word": "용량",
+      "percentage": 20,
+      "sentiment": "negative",
+      "positiveSummary": "가격 대비 넉넉한 용량으로 오래 쓸 수 있다는 평.",
+      "negativeSummary": "매일 사용하면 한 달 내에 소진되어 생각보다 빨리 재구매해야 한다는 지적."
+    }
   ],
   "negativePoints": [
     {
@@ -327,7 +394,7 @@ function parseStructuredResponse(rawText) {
 
   try {
     const parsed = JSON.parse(cleaned);
-    if (parsed.topKeywords || parsed.positivePoints || parsed.negativePoints) {
+    if (parsed.keywordAnalysis || parsed.topKeywords || parsed.positivePoints || parsed.negativePoints) {
       return parsed;
     }
   } catch (e) {
@@ -344,11 +411,11 @@ function parseStructuredResponse(rawText) {
   }
 
   return {
-    topKeywords: [
-      { word: "품질", percentage: 65, sentiment: "positive" },
-      { word: "가성비", percentage: 50, sentiment: "positive" },
-      { word: "배송/포장", percentage: 35, sentiment: "neutral" },
-      { word: "아쉬운 점", percentage: 25, sentiment: "negative" }
+    keywordAnalysis: [
+      { word: "품질", percentage: 65, sentiment: "positive", positiveSummary: "전반적으로 만족스러운 품질이라는 평가가 다수.", negativeSummary: "일부 사용자는 내구성이 기대보다 낮다고 평가." },
+      { word: "가성비", percentage: 50, sentiment: "positive", positiveSummary: "가격 대비 성능이 좋다는 만족 후기.", negativeSummary: "가격 인상 후 가성비가 떨어졌다는 의견 존재." },
+      { word: "배송/포장", percentage: 35, sentiment: "neutral", positiveSummary: "로켓배송으로 빠르게 받았다는 만족 의견.", negativeSummary: "포장이 부실하여 제품이 훼손된 경우가 간혹 보고됨." },
+      { word: "아쉬운 점", percentage: 25, sentiment: "negative", positiveSummary: "기본 기능은 무난하게 작동한다는 평.", negativeSummary: "기대 대비 성능이 부족하다는 전반적인 불만." }
     ],
     negativePoints: [
       { title: "실구매자 주의사항", percentage: 35, description: "구매 전 아쉬운 점과 단점을 확인하세요." }
@@ -370,6 +437,37 @@ function renderMarkdown(md) {
     .replace(/>/g, '&gt;');
 }
 
+/**
+ * Parse keyword generation response from 1st LLM call
+ */
+function parseKeywordResponse(rawText) {
+  if (!rawText) return null;
+  let cleaned = rawText.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '').trim();
+  }
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed.keywords && Array.isArray(parsed.keywords)) {
+      return parsed.keywords.slice(0, 6);
+    }
+  } catch (e) {
+    console.warn('Keyword JSON parse failed, trying regex:', e);
+  }
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (parsed.keywords && Array.isArray(parsed.keywords)) {
+        return parsed.keywords.slice(0, 6);
+      }
+    } catch (e) {
+      console.warn('Keyword regex extraction failed:', e);
+    }
+  }
+  return null;
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     FILTER_CATEGORIES,
@@ -379,7 +477,9 @@ if (typeof module !== 'undefined' && module.exports) {
     selectReviewsByScoreRatio,
     extractReviewContents,
     formatBytes,
+    buildKeywordGenerationPrompt,
     buildGeminiPrompt,
+    parseKeywordResponse,
     parseStructuredResponse,
     renderMarkdown
   };

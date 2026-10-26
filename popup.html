@@ -86,6 +86,33 @@
           </div>
         </div>
 
+        <!-- AI Generated Keywords Card (shown after product detection) -->
+        <div class="card keywords-preview-card" id="keywordsPreviewCard" style="display:none;">
+          <div class="keywords-preview-header">
+            <div class="keywords-preview-left">
+              <span class="keywords-preview-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </span>
+              <span class="keywords-preview-title">AI 핵심 키워드</span>
+            </div>
+            <span class="keywords-preview-sub" id="keywordsPreviewStatus">생성 중...</span>
+          </div>
+          <div class="keywords-preview-chips" id="keywordsPreviewChips">
+            <div class="keywords-preview-loading">
+              <div class="keyword-skeleton-chip"></div>
+              <div class="keyword-skeleton-chip"></div>
+              <div class="keyword-skeleton-chip"></div>
+              <div class="keyword-skeleton-chip"></div>
+              <div class="keyword-skeleton-chip"></div>
+              <div class="keyword-skeleton-chip"></div>
+            </div>
+          </div>
+          <p class="keywords-preview-caption">이 키워드를 기준으로 부정 리뷰를 분석해요</p>
+        </div>
+
         <!-- Custom Product ID Accordion Link -->
         <div class="custom-id-toggle-row">
           <button class="text-link-btn" id="toggleCustomIdBtn">
@@ -304,14 +331,31 @@
           </button>
         </div>
 
-        <!-- Most Mentioned Keywords Card (많이 언급된 단어) -->
+        <!-- Keyword Analysis Card -->
         <div class="card keywords-card">
           <div class="keywords-card-header">
-            <div class="card-pill-tag">많이 언급된 단어</div>
-            <span class="keywords-sub-caption">실구매자 리뷰 빈출 키워드</span>
+            <div class="card-pill-tag">핵심 키워드 분석</div>
+            <span class="keywords-sub-caption">키워드를 눌러 상세 분석 보기</span>
           </div>
           <div class="keywords-chips-wrap" id="keywordChipsList">
             <!-- Keyword chips dynamically injected here -->
+          </div>
+          <!-- Per-keyword positive/negative detail -->
+          <div class="keyword-detail-wrap" id="keywordDetailWrap" style="display:none;">
+            <div class="keyword-detail-panel keyword-detail-positive" id="keywordPositivePanel">
+              <div class="keyword-detail-header">
+                <span class="keyword-detail-label text-pros">긍정</span>
+                <span class="keyword-detail-title" id="keywordPositiveTitle"></span>
+              </div>
+              <p class="keyword-detail-desc" id="keywordPositiveDesc"></p>
+            </div>
+            <div class="keyword-detail-panel keyword-detail-negative" id="keywordNegativePanel">
+              <div class="keyword-detail-header">
+                <span class="keyword-detail-label text-cons">부정</span>
+                <span class="keyword-detail-title" id="keywordNegativeTitle"></span>
+              </div>
+              <p class="keyword-detail-desc" id="keywordNegativeDesc"></p>
+            </div>
           </div>
         </div>
 
@@ -324,16 +368,6 @@
 
           <div class="metrics-list" id="prosList">
             <!-- Pros Items injected here -->
-            <div class="metric-row">
-              <div class="metric-header-line">
-                <span class="metric-item-title">하나로 끝나는 편리함</span>
-                <span class="metric-item-pct pros-pct">68%</span>
-              </div>
-              <div class="metric-bar-track">
-                <div class="metric-bar-fill pros-fill" style="width: 68%;"></div>
-              </div>
-              <p class="metric-desc">세안·면도 후 이것 하나만 바르면 돼서 바쁜 아침에 편하다는 평이 가장 많아요.</p>
-            </div>
           </div>
         </div>
 
@@ -346,16 +380,6 @@
 
           <div class="metrics-list" id="consList">
             <!-- Cons Items injected here -->
-            <div class="metric-row">
-              <div class="metric-header-line">
-                <span class="metric-item-title">건성 피부엔 보습 부족</span>
-                <span class="metric-item-pct cons-pct">22%</span>
-              </div>
-              <div class="metric-bar-track">
-                <div class="metric-bar-fill cons-fill" style="width: 22%;"></div>
-              </div>
-              <p class="metric-desc">겨울이나 건조한 피부는 크림을 따로 덧발라야 했다는 의견이 있어요.</p>
-            </div>
           </div>
         </div>
 
