@@ -393,6 +393,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ----------------------------------------------------
   // 4. Product Tab Detection
   // ----------------------------------------------------
+  // Keywords Preview DOM refs (must be declared before renderDetectedProduct)
+  const keywordsPreviewCard = document.getElementById('keywordsPreviewCard');
+  const keywordsPreviewChips = document.getElementById('keywordsPreviewChips');
+  const keywordsPreviewStatus = document.getElementById('keywordsPreviewStatus');
+
   async function detectCoupangProductOnTab() {
     if (!isExtensionEnv || !chrome.tabs) {
       renderDetectedProduct();
@@ -527,10 +532,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Keywords Preview on Landing Page
-  const keywordsPreviewCard = document.getElementById('keywordsPreviewCard');
-  const keywordsPreviewChips = document.getElementById('keywordsPreviewChips');
-  const keywordsPreviewStatus = document.getElementById('keywordsPreviewStatus');
-
   async function triggerKeywordGeneration() {
     if (!state.productTitle || state.generatedKeywords) return;
 
