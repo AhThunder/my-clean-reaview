@@ -343,16 +343,181 @@ async function prepareReviewsPipeline(extractedDataOrRawJson, analysisMode = 'BA
 }
 
 /**
+ * ----------------------------------------------------
+ * 상품 상세 이미지 기반 AI 챗봇 파이프라인 (gemini-3.5-flash-lite 고정)
+ * ----------------------------------------------------
+ */
+const productSpecsCache = new Map(); // productId -> { specsText, imageCount, timestamp }
+
+/**
+ * 보완사항 1: 상세 이미지 1회 OCR/스펙 분석 및 텍스트 캐싱
+ * 보완사항 3: 이미지 0개 또는 로딩 실패 시 친절한 예외 처리
+ */
+async function analyzeProductDetailImages(productId, imageUrls = [], productTitle = '') {
+  if (!productId) {
+    throw new Error('상품 ID가 지정되지 않았습니다.');
+  }
+
+  // 캐시 확인
+  if (productSpecsCache.has(productId)) {
+    const cached = productSpecsCache.get(productId);
+    return {
+      success: true,
+      fromCache: true,
+      specsText: cached.specsText,
+      imageCount: cached.imageCount
+    };
+  }
+
+  // 보완사항 3: 상세 이미지가 0개인 경우 예외 처리
+  if (!imageUrls || imageUrls.length === 0) {
+    return {
+      success: false,
+      reason: 'NO_IMAGES',
+      message: '해당 상품은 상세 설명란 이미지를 찾을 수 없어 챗봇을 이용할 수 없습니다.'
+    };
+  }
+
+  // 성능 및 토큰 최적화를 위해 최대 10장 선별
+  const targetUrls = imageUrls.slice(0, 10);
+  console.log(`[Chatbot Pipeline] Fetching & analyzing ${targetUrls.length} detail images for product ${productId}...`);
+
+  // 이미지 비동기 병렬 다운로드 (Base64 변환)
+  const imageParts = await Promise.all(targetUrls.map(url => fetchImageAsBase64(url)));
+  const validParts = imageParts.filter(Boolean);
+
+  if (validParts.length === 0) {
+    return {
+      success: false,
+      reason: 'IMAGE_LOAD_FAILED',
+      message: '상세 설명 이미지를 불러오는 데 실패했습니다. 네트워크 상태를 확인해 주세요.'
+    };
+  }
+
+  // Gemini 3.5 Flash Lite 멀티모달 분석 프롬프트
+  const promptText = `[상품명]: ${productTitle || '알 수 없음'}
+
+당신은 전자상거래 상품 상세페이지(제조사 공식 제공 정보) 전문 분석관입니다.
+제공된 상품 상세페이지 이미지들에 기재된 모든 정보(제품명, 브랜드, 규격/치수/용량/중량, 소재/성분, 제조국, 호환 모델, 사용 방법, 보관 및 관리법, 주의사항, 인증 정보, 구성품 등)를 빠짐없이 사실 그대로 상세하게 한국어로 구조화하여 정리해 주세요.
+
+[원칙]
+1. 이미지에 명시된 사실만 기록하세요.
+2. 사용자 리뷰, 외부 의견, 임의의 추측은 절대 포함하지 마세요.
+3. 이미지에서 확인되지 않는 내용은 기록하지 마세요.`;
+
+  const multimodalResult = await callGeminiMultimodalApi([...validParts, { text: promptText }], {
+    model: 'gemini-3.5-flash-lite',
+    temperature: 0.2
+  });
+
+  const specsText = multimodalResult.text;
+  productSpecsCache.set(productId, {
+    specsText,
+    imageCount: validParts.length,
+    timestamp: Date.now()
+  });
+
+  console.log(`[Chatbot Pipeline] Product ${productId} specs successfully analyzed and cached! (${validParts.length} images)`);
+
+  return {
+    success: true,
+    fromCache: false,
+    specsText,
+    imageCount: validParts.length
+  };
+}
+
+/**
+ * 상품 챗봇 Q&A: 캐시된 상세페이지 스펙을 바탕으로 1초 내 즉각 답변
+ * 리뷰 정보는 일체 사용하지 않으며, 상세 설명에 없는 내용은 명확하게 부재 안내
+ */
+async function askProductChatbot(productId, question, chatHistory = [], productTitle = '') {
+  if (!productId || !question) {
+    throw new Error('상품 ID와 질문을 입력해 주세요.');
+  }
+
+  const cached = productSpecsCache.get(productId);
+  if (!cached || !cached.specsText) {
+    return {
+      success: false,
+      reason: 'NOT_ANALYZED',
+      message: '상품 상세페이지가 아직 분석되지 않았습니다. 잠시 후 다시 시도해 주세요.'
+    };
+  }
+
+  const systemInstruction = `당신은 이 상품의 제조사 공식 상세페이지(스펙 및 설명서) 정보에만 기반하여 답변하는 AI 상품 전문 어시스턴트입니다.
+
+[엄격한 원칙]
+1. 제공된 [상품 공식 상세페이지 정보]에 명시된 사실에만 근거하여 사용자 질문에 정확하고 친절하게 답변하세요.
+2. 사용자 리뷰, 외부 의견, 임의의 추측은 절대 답변에 포함하지 마세요.
+3. 제공된 상세 정보에서 확인할 수 없는 내용이라면 절대로 거짓으로 꾸며내지 말고 "해당 내용은 상품 상세설명에 명시되어 있지 않습니다."라고 솔직하고 명확하게 안내하세요.
+4. 한국어로 정중하고 친절하게 핵심 위주로 명확하게 답변하세요.`;
+
+  let historyText = '';
+  if (chatHistory && chatHistory.length > 0) {
+    historyText = chatHistory.slice(-6).map(m => `${m.role === 'user' ? '사용자' : '챗봇'}: ${m.text}`).join('\n');
+  }
+
+  const prompt = `[상품명]: ${productTitle || '알 수 없음'}
+
+[상품 공식 상세페이지 정보]:
+${cached.specsText}
+
+[이전 대화 내역]:
+${historyText || '(첫 대화)'}
+
+사용자 질문: ${question}
+
+답변:`;
+
+  const result = await callGeminiMultimodalApi([{ text: prompt }], {
+    model: 'gemini-3.5-flash-lite',
+    systemInstruction,
+    temperature: 0.2
+  });
+
+  return {
+    success: true,
+    answer: result.text.trim(),
+    usedModel: result.usedModel
+  };
+}
+
+// RAM-only memory cache (never written to disk/chrome.storage)
+const tabKeywordsMemoryMap = new Map(); // productId -> { keywords, usedModel, timestamp }
+
+/**
  * 1.5단계 파이프라인: 상품명 기반 핵심 키워드 6개 생성 (1차 LLM 호출)
  */
-async function generateKeywordsPipeline(productTitle) {
+async function generateKeywordsPipeline(productTitle, productId = null) {
+  if (productId && tabKeywordsMemoryMap.has(productId)) {
+    const cached = tabKeywordsMemoryMap.get(productId);
+    console.log(`[Keywords Pipeline] Returning RAM-cached keywords for product ${productId}:`, cached.keywords);
+    return {
+      success: true,
+      keywords: cached.keywords || [],
+      usedModel: cached.usedModel,
+      fromCache: true
+    };
+  }
+
   const prompt = buildKeywordGenerationPrompt(productTitle);
   const geminiResult = await callGeminiApi(prompt);
   const keywords = parseKeywordResponse(geminiResult.text);
+
+  if (productId && keywords && keywords.length > 0) {
+    tabKeywordsMemoryMap.set(productId, {
+      keywords,
+      usedModel: geminiResult.usedModel,
+      timestamp: Date.now()
+    });
+  }
+
   return {
     success: true,
     keywords: keywords || [],
-    usedModel: geminiResult.usedModel
+    usedModel: geminiResult.usedModel,
+    fromCache: false
   };
 }
 
@@ -495,12 +660,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // 3.55 Generate Product Keywords (1차 LLM 호출: 상품 키워드 생성)
       } else if (action === 'GENERATE_KEYWORDS') {
-        const { productTitle } = payload || {};
+        const { productTitle, productId } = payload || {};
         if (!productTitle) {
           throw new Error('상품명이 전달되지 않았습니다.');
         }
-        const result = await generateKeywordsPipeline(productTitle);
+        const result = await generateKeywordsPipeline(productTitle, productId);
         sendResponse({ success: true, data: result });
+
+      // 3.56 Analyze Product Detail Images (챗봇용 상세 이미지 1회 스펙 분석 & 캐싱)
+      } else if (action === 'ANALYZE_PRODUCT_IMAGES') {
+        const { productId, imageUrls = [], productTitle = '' } = payload || {};
+        const result = await analyzeProductDetailImages(productId, imageUrls, productTitle);
+        sendResponse(result);
+
+      // 3.57 Ask Product Chatbot (캐시된 상세 스펙 기반 즉시 질의응답)
+      } else if (action === 'ASK_PRODUCT_CHATBOT') {
+        const { productId, question, chatHistory = [], productTitle = '' } = payload || {};
+        const result = await askProductChatbot(productId, question, chatHistory, productTitle);
+        sendResponse(result);
+
+      // 3.58 Get Chatbot Cache Status
+      } else if (action === 'GET_CHATBOT_CACHE') {
+        const { productId } = payload || {};
+        const cached = productId ? productSpecsCache.get(productId) : null;
+        sendResponse({
+          success: true,
+          hasCache: !!cached,
+          imageCount: cached ? cached.imageCount : 0
+        });
 
       // 3.6 Generate AI Summary from Prepared Reviews (Step 4 & Step 5: LLM 호출 및 세션 캐싱)
       } else if (action === 'GENERATE_SUMMARY') {

@@ -181,12 +181,146 @@ async function testGeminiApiKey(apiKey, model = PRIMARY_MODEL) {
   };
 }
 
+/**
+ * Convert Image URL to Base64 Inline Data Part for Gemini Multimodal API
+ */
+async function fetchImageAsBase64(imageUrl) {
+  try {
+    let targetUrl = (imageUrl || '').trim();
+    if (targetUrl.startsWith('//')) {
+      targetUrl = 'https:' + targetUrl;
+    }
+    const res = await fetch(targetUrl, { method: 'GET', credentials: 'omit' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const mimeType = blob.type || (targetUrl.endsWith('.png') ? 'image/png' : 'image/jpeg');
+    const buffer = await blob.arrayBuffer();
+
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 8192;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    const base64Data = btoa(binary);
+
+    return {
+      inlineData: {
+        mimeType: mimeType,
+        data: base64Data
+      }
+    };
+  } catch (e) {
+    console.warn('[Gemini] Failed to fetch image as base64:', imageUrl, e);
+    return null;
+  }
+}
+
+/**
+ * Call Gemini Multimodal API with custom parts (Text + Images) and options
+ * Strictly uses PRIMARY_MODEL (gemini-3.5-flash-lite) for chatbot functions.
+ */
+async function callGeminiMultimodalApi(parts, options = {}) {
+  const config = await getGeminiConfig();
+  const targetModel = (options.model || PRIMARY_MODEL).trim();
+
+  let availableKeys = [];
+  if (options.apiKey) {
+    availableKeys = [options.apiKey.trim()];
+  } else if (config.apiKeys && config.apiKeys.length > 0) {
+    availableKeys = [...config.apiKeys];
+  } else if (config.apiKey) {
+    availableKeys = [config.apiKey.trim()];
+  }
+
+  if (availableKeys.length === 0) {
+    throw new Error('AUTH_REQUIRED: 테스터 인증이 필요합니다. 관리자로부터 전달받은 테스터 비밀번호를 입력해 주세요.');
+  }
+
+  const shuffledKeys = [...availableKeys].sort(() => Math.random() - 0.5);
+
+  let lastError = null;
+
+  for (let kIdx = 0; kIdx < shuffledKeys.length; kIdx++) {
+    const currentApiKey = shuffledKeys[kIdx];
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${currentApiKey}`;
+
+    // Normalize parts: string -> [{ text: string }] or Array
+    const contentParts = Array.isArray(parts) ? parts : [{ text: String(parts) }];
+
+    const requestBody = {
+      contents: [
+        {
+          parts: contentParts
+        }
+      ],
+      generationConfig: {
+        temperature: options.temperature !== undefined ? options.temperature : 0.3,
+        topP: 0.95,
+        maxOutputTokens: options.maxOutputTokens || 2048
+      }
+    };
+
+    if (options.responseMimeType) {
+      requestBody.generationConfig.responseMimeType = options.responseMimeType;
+    }
+
+    if (options.systemInstruction) {
+      requestBody.systemInstruction = {
+        parts: [{ text: options.systemInstruction }]
+      };
+    }
+
+    try {
+      console.log(`[Google AI Multimodal API] Calling ${targetModel} (Key ${kIdx + 1}/${shuffledKeys.length}, Parts: ${contentParts.length})...`);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorMsg = data?.error?.message || `HTTP ${response.status} error`;
+        console.warn(`[Google AI Multimodal] Error (${response.status}):`, errorMsg);
+
+        if (response.status === 429 || errorMsg.includes('RESOURCE_EXHAUSTED') || errorMsg.includes('Quota')) {
+          lastError = new Error(`할당량 초과 (${targetModel}): ${errorMsg}`);
+          continue;
+        }
+        throw new Error(`API 오류 (${response.status}): ${errorMsg}`);
+      }
+
+      const candidates = data?.candidates || [];
+      if (candidates.length === 0 || !candidates[0]?.content?.parts?.[0]?.text) {
+        throw new Error('API로부터 유효한 텍스트 응답을 받지 못했습니다.');
+      }
+
+      return {
+        text: candidates[0].content.parts[0].text,
+        usedModel: targetModel
+      };
+
+    } catch (err) {
+      lastError = err;
+      if (kIdx < shuffledKeys.length - 1) {
+        continue;
+      }
+    }
+  }
+
+  throw lastError || new Error('모든 API 키 호출에 실패했습니다.');
+}
+
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     PRIMARY_MODEL,
     FALLBACK_MODELS,
     getGeminiConfig,
     callGeminiApi,
+    callGeminiMultimodalApi,
+    fetchImageAsBase64,
     testGeminiApiKey
   };
 }

@@ -28,7 +28,8 @@
     title: '',
     reviewCount: null, // null until resolved
     rating: 4.5,
-    imageUrl: ''
+    imageUrl: '',
+    keywords: null // Tab-memory cache for AI keywords
   };
 
   /**
@@ -115,10 +116,136 @@
       title: title || cachedProductInfo.title,
       reviewCount: (reviewCount !== null) ? reviewCount : cachedProductInfo.reviewCount,
       rating: rating || cachedProductInfo.rating,
-      imageUrl: imageUrl || cachedProductInfo.imageUrl
+      imageUrl: imageUrl || cachedProductInfo.imageUrl,
+      keywords: cachedProductInfo.keywords || null
     };
 
     return cachedProductInfo;
+  }
+
+  /**
+   * Automatically expand Coupang Product Detail section by clicking "더보기" button
+   * to reveal additional hidden images (typically 3~5 more images)
+   */
+  function expandProductDetailIfCollapsed() {
+    const moreBtnSelectors = [
+      '.product-detail-item-more',
+      '.product-detail-item-more button',
+      '.product-detail-more',
+      '.btn-more',
+      '.subType-vendor-item .product-detail-item-more',
+      'button.product-detail-more',
+      '.prod-detail-more',
+      '.product-detail-item-more .btn-more'
+    ];
+
+    for (const sel of moreBtnSelectors) {
+      const btn = document.querySelector(sel);
+      if (btn && btn.offsetParent !== null) {
+        try {
+          btn.click();
+          console.log('[Coupang AI Chatbot] Auto-clicked "더보기" button:', sel);
+          return true;
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    // Fallback: search by button text
+    const buttons = document.querySelectorAll('button, a, div[role="button"]');
+    for (const el of buttons) {
+      const txt = (el.textContent || '').trim();
+      if ((txt.includes('더보기') || txt.includes('상품설명 더보기') || txt.includes('상세정보 더보기')) && txt.length < 25) {
+        if (el.offsetParent !== null) {
+          try {
+            el.click();
+            console.log('[Coupang AI Chatbot] Auto-clicked "더보기" by text:', txt);
+            return true;
+          } catch (e) { }
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Scrape Product Detail Description Images containing "/q89/"
+   * Multi-strategy:
+   * 1. Auto-clicks "더보기" to reveal 3~5 hidden additional images
+   * 2. Queries browser Network performance entries (performance.getEntriesByType('resource'))
+   * 3. Scans DOM <img> elements (src, data-src, data-original, data-lazy-src)
+   * 4. Scans page HTML & inline scripts
+   */
+  async function scrapeProductDetailImages() {
+    // 1. Try expanding "더보기" button
+    const expanded = expandProductDetailIfCollapsed();
+    if (expanded) {
+      await new Promise(r => setTimeout(r, 400));
+    }
+
+    const urls = new Set();
+
+    // 2. Query browser Network entries (100% matches DevTools Network tab IMG requests)
+    try {
+      if (typeof window !== 'undefined' && window.performance && typeof window.performance.getEntriesByType === 'function') {
+        const resources = window.performance.getEntriesByType('resource');
+        for (const res of resources) {
+          if (res && res.name && typeof res.name === 'string' && res.name.includes('/q89/')) {
+            let u = res.name.trim();
+            if (u.startsWith('//')) u = 'https:' + u;
+            if (u.startsWith('http://') || u.startsWith('https://')) {
+              urls.add(u);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Coupang AI Chatbot] Error reading performance entries:', e);
+    }
+
+    // 3. Scan DOM img elements
+    try {
+      const imgElements = document.querySelectorAll('img');
+      imgElements.forEach((img) => {
+        const candidates = [
+          img.getAttribute('src'),
+          img.getAttribute('data-src'),
+          img.getAttribute('data-original'),
+          img.getAttribute('data-lazy-src'),
+          img.src
+        ];
+
+        for (const rawUrl of candidates) {
+          if (rawUrl && typeof rawUrl === 'string' && rawUrl.includes('/q89/')) {
+            let fullUrl = rawUrl.trim();
+            if (fullUrl.startsWith('//')) fullUrl = 'https:' + fullUrl;
+            if (fullUrl.startsWith('http://') || fullUrl.startsWith('https://')) {
+              urls.add(fullUrl);
+            }
+          }
+        }
+      });
+    } catch (e) {}
+
+    // 4. Scan HTML and inline scripts
+    try {
+      const htmlMatches = document.documentElement.innerHTML.match(/(?:https?:)?\/\/[^"'\s\)<>]+\/q89\/[^"'\s\)<>]+/g);
+      if (htmlMatches) {
+        htmlMatches.forEach(raw => {
+          let u = raw.trim().replace(/\\"/g, '').replace(/\\/g, '').replace(/&amp;/g, '&');
+          if (u.startsWith('//')) u = 'https:' + u;
+          if (u.startsWith('http://') || u.startsWith('https://')) {
+            urls.add(u);
+          }
+        });
+      }
+    } catch (e) {}
+
+    const result = Array.from(urls);
+    console.log(`[Coupang AI Chatbot] Scraped ${result.length} detail images (/q89/):`, result);
+    return result;
   }
 
   /**
@@ -319,7 +446,23 @@
     if (request.action === 'GET_PAGE_PRODUCT_INFO') {
       const info = scrapePageProductInfo();
       sendResponse({ success: true, data: info });
+    } else if (request.action === 'GET_DETAIL_IMAGES') {
+      scrapeProductDetailImages().then(images => {
+        sendResponse({ success: true, data: { imageUrls: images } });
+      }).catch(err => {
+        console.warn('[Coupang AI Chatbot] Error scraping images:', err);
+        sendResponse({ success: false, data: { imageUrls: [] } });
+      });
+      return true;
+    } else if (request.action === 'STORE_TAB_KEYWORDS') {
+      if (Array.isArray(request.payload?.keywords) && request.payload.keywords.length > 0) {
+        cachedProductInfo.keywords = request.payload.keywords;
+        console.log(`[Coupang Tab Memory] Successfully cached ${cachedProductInfo.keywords.length} keywords in tab memory for product ${productId}`);
+      }
+      sendResponse({ success: true });
+      return true;
     }
+    return true;
   });
 
   // Inject when DOM is ready

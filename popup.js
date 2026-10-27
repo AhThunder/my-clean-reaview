@@ -29,7 +29,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     analysisCancelRequested: false,
     currentResultData: null,
     generatedKeywords: null,
-    selectedKeywordIndex: 0
+    selectedKeywordIndex: 0,
+    currentTab: 'REVIEW', // 'REVIEW' | 'CHATBOT'
+    chatbotState: {
+      isAnalyzingSpecs: false,
+      isSpecsAnalyzed: false,
+      hasShownGreeting: false,
+      specsText: null,
+      imageCount: 0,
+      chatHistory: [],
+      isSendingQuestion: false
+    }
   };
 
   // Star config for donut chart & legend
@@ -52,12 +62,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const headerSettingsBtn = document.getElementById('headerSettingsBtn');
   const headerCloseBtn = document.getElementById('headerCloseBtn');
 
+  // App Tabs
+  const appTabNav = document.getElementById('appTabNav');
+  const tabReviewBtn = document.getElementById('tabReviewBtn');
+  const tabChatbotBtn = document.getElementById('tabChatbotBtn');
+
   // Views
   const viewMain = document.getElementById('viewMain');
   const viewProgress = document.getElementById('viewProgress');
   const viewResult = document.getElementById('viewResult');
   const viewExcluded = document.getElementById('viewExcluded');
   const viewSettings = document.getElementById('viewSettings');
+  const viewChatbot = document.getElementById('viewChatbot');
 
   // Footers
   const mainFooterBar = document.getElementById('mainFooterBar');
@@ -157,6 +173,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const keywordsPreviewChips = document.getElementById('keywordsPreviewChips');
   const keywordsPreviewStatus = document.getElementById('keywordsPreviewStatus');
 
+  // Chatbot Controls
+  const chatbotStatusBanner = document.getElementById('chatbotStatusBanner');
+  const chatbotStatusDot = document.getElementById('chatbotStatusDot');
+  const chatbotStatusText = document.getElementById('chatbotStatusText');
+  const chatbotNoticeCard = document.getElementById('chatbotNoticeCard');
+  const chatbotNoticeTitle = document.getElementById('chatbotNoticeTitle');
+  const chatbotNoticeDesc = document.getElementById('chatbotNoticeDesc');
+  const chatbotNoticeRetryBtn = document.getElementById('chatbotNoticeRetryBtn');
+  const chatbotMessagesContainer = document.getElementById('chatbotMessagesContainer');
+  const chatbotFooterBar = document.getElementById('chatbotFooterBar');
+  const chatbotInputForm = document.getElementById('chatbotInputForm');
+  const chatbotInputText = document.getElementById('chatbotInputText');
+  const chatbotSendBtn = document.getElementById('chatbotSendBtn');
+
   // ----------------------------------------------------
   // 1. Initialization
   // ----------------------------------------------------
@@ -164,6 +194,58 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadUserPreferences();
   await detectCoupangProductOnTab();
   await checkAndRestorePreviousSession();
+  adjustPopupLayoutToScreen();
+
+  // ----------------------------------------------------
+  // Dynamic Screen & Viewport Layout Adaptor (세로 화면 / 유동 높이 조절)
+  // ----------------------------------------------------
+  function adjustPopupLayoutToScreen() {
+    const availH = window.screen.availHeight || window.screen.height || 800;
+    const availW = window.screen.availWidth || window.screen.width || 1200;
+    // 세로 모니터 판별: 세로 해상도가 가로 해상도보다 크거나, 세로 가용 높이가 1000px 이상인 경우
+    const isVertical = (window.screen.height > window.screen.width) || (availH >= 1100);
+
+    if (isVertical) {
+      document.body.classList.add('is-vertical-screen');
+    } else {
+      document.body.classList.remove('is-vertical-screen');
+    }
+
+    const headerEl = document.getElementById('appHeader');
+    const tabNavEl = document.getElementById('appTabNav');
+    const headerH = headerEl ? headerEl.offsetHeight : 62;
+    const tabNavH = (tabNavEl && tabNavEl.style.display !== 'none') ? tabNavEl.offsetHeight : 0;
+
+    let targetHeight = 600;
+
+    if (isVertical || availH >= 950) {
+      // 세로 화면인 경우 현재 활성화된 뷰의 실제 콘텐츠 높이를 측정하여 스크롤 없이 시원하게 표시
+      const activePanel = document.querySelector('.view-panel[style*="display: block"]');
+      let panelH = 550;
+      if (state.currentView === 'CHATBOT') {
+        panelH = Math.min(680, availH - headerH - tabNavH - 120);
+      } else if (activePanel) {
+        panelH = activePanel.scrollHeight;
+      }
+
+      // 하단 고정 버튼(sticky-footer ~70px) + 패딩(24px) 반영
+      const neededHeight = headerH + tabNavH + panelH + 94;
+      // 화면 최대 가용 높이(태스크바 등 60px 제외) 내에서 스크롤이 없도록 자동 조절
+      targetHeight = Math.min(neededHeight, availH - 60);
+      targetHeight = Math.max(600, targetHeight);
+    } else {
+      targetHeight = Math.min(600, availH - 50);
+    }
+
+    document.documentElement.style.height = `${targetHeight}px`;
+    document.body.style.height = `${targetHeight}px`;
+    const container = document.getElementById('appContainer');
+    if (container) {
+      container.style.height = `${targetHeight}px`;
+    }
+  }
+
+  window.addEventListener('resize', adjustPopupLayoutToScreen);
 
   // ----------------------------------------------------
   // 2. View Navigation State Machine
@@ -186,6 +268,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     viewResult.style.display = 'none';
     viewExcluded.style.display = 'none';
     viewSettings.style.display = 'none';
+    if (viewChatbot) viewChatbot.style.display = 'none';
 
     // Hide all footer bars
     mainFooterBar.style.display = 'none';
@@ -193,6 +276,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     resultFooterBar.style.display = 'none';
     settingsFooterBar.style.display = 'none';
     if (excludedFooterBar) excludedFooterBar.style.display = 'none';
+    if (chatbotFooterBar) chatbotFooterBar.style.display = 'none';
+
+    // Show tab nav on MAIN, CHATBOT, and RESULT views
+    if (appTabNav) {
+      if (targetView === 'MAIN' || targetView === 'CHATBOT' || targetView === 'RESULT') {
+        appTabNav.style.display = 'flex';
+      } else {
+        appTabNav.style.display = 'none';
+      }
+    }
 
     // Configure header per view
     if (targetView === 'MAIN') {
@@ -203,8 +296,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       headerSettingsBtn.style.display = 'flex';
       headerCloseBtn.style.display = 'flex';
 
+      if (tabReviewBtn) tabReviewBtn.classList.add('active');
+      if (tabChatbotBtn) tabChatbotBtn.classList.remove('active');
+      state.currentTab = 'REVIEW';
+
       viewMain.style.display = 'block';
       mainFooterBar.style.display = 'block';
+
+    } else if (targetView === 'CHATBOT') {
+      headerBackBtn.style.display = 'none';
+      headerBrandGroup.style.display = 'flex';
+      headerTitle.textContent = '상품 챗봇 (Q&A)';
+      headerSubtitle.textContent = 'Gemini 3.5 Flash-Lite';
+      headerSettingsBtn.style.display = 'flex';
+      headerCloseBtn.style.display = 'flex';
+
+      if (tabReviewBtn) tabReviewBtn.classList.remove('active');
+      if (tabChatbotBtn) tabChatbotBtn.classList.add('active');
+      state.currentTab = 'CHATBOT';
+
+      viewChatbot.style.display = 'block';
+      chatbotFooterBar.style.display = 'block';
+
+      initChatbotSession();
 
     } else if (targetView === 'PROGRESS') {
       headerBackBtn.style.display = 'none';
@@ -224,6 +338,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       headerSubtitle.textContent = state.productTitle.substring(0, 22) + '...';
       headerSettingsBtn.style.display = 'none';
       headerCloseBtn.style.display = 'flex';
+
+      if (tabReviewBtn) tabReviewBtn.classList.add('active');
+      if (tabChatbotBtn) tabChatbotBtn.classList.remove('active');
+      state.currentTab = 'REVIEW';
 
       viewResult.style.display = 'block';
       resultFooterBar.style.display = 'flex';
@@ -254,8 +372,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       settingsFooterBar.style.display = 'block';
     }
 
-    // Scroll to top of viewport
-    document.getElementById('viewViewport').scrollTop = 0;
+    // Scroll to top of viewport (or scroll to bottom for CHATBOT)
+    if (targetView === 'CHATBOT') {
+      scrollChatToBottom(false);
+    } else {
+      const vp = document.getElementById('viewViewport');
+      if (vp) vp.scrollTop = 0;
+    }
+
+    // 화면 높이에 맞게 뷰포트 및 팝업 크기 유동 동기화
+    adjustPopupLayoutToScreen();
   }
 
   // Back button handler
@@ -278,6 +404,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       switchView('MAIN', false);
     }
   });
+
+  // App Navigation Tabs (A안: 리뷰 요약 <-> 상품 챗봇)
+  if (tabReviewBtn) {
+    tabReviewBtn.addEventListener('click', () => {
+      if (state.currentResultData) {
+        switchView('RESULT');
+      } else {
+        switchView('MAIN');
+      }
+    });
+  }
+  if (tabChatbotBtn) {
+    tabChatbotBtn.addEventListener('click', () => {
+      switchView('CHATBOT');
+    });
+  }
 
   // Settings gear button
   headerSettingsBtn.addEventListener('click', () => {
@@ -417,7 +559,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const match = url.match(/\/products\/([0-9]+)/) || url.match(/[?&]productId=([0-9]+)/);
 
       if (match) {
-        state.productId = match[1];
+        const newId = match[1];
+        if (state.productId && state.productId !== newId) {
+          state.chatbotState.isSpecsAnalyzed = false;
+          state.chatbotState.hasShownGreeting = false;
+          state.chatbotState.chatHistory = [];
+          isChatbotInitialized = false;
+          if (chatbotMessagesContainer) {
+            chatbotMessagesContainer.innerHTML = '<div class="chatbot-scroll-anchor" id="chatbotScrollAnchor"></div>';
+          }
+        }
+        state.productId = newId;
         state.isProductDetected = true;
         if (activeTab.title && activeTab.title.includes('쿠팡!')) {
           const rawTitle = activeTab.title.replace(' - 쿠팡!', '').replace('쿠팡!', '').trim();
@@ -432,6 +584,10 @@ document.addEventListener('DOMContentLoaded', async () => {
               if (res.data.reviewCount) state.productReviewCount = res.data.reviewCount;
               if (res.data.rating) state.productRating = res.data.rating;
               if (res.data.imageUrl) state.productImageUrl = res.data.imageUrl;
+              if (Array.isArray(res.data.keywords) && res.data.keywords.length > 0) {
+                state.generatedKeywords = res.data.keywords;
+                console.log('[Popup] Restored keywords from tab memory:', state.generatedKeywords);
+              }
               renderDetectedProduct();
             }
           });
@@ -478,7 +634,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         productMetaDot.style.display = (state.productRating && state.productReviewCount) ? 'inline' : 'none';
       }
       if (productReviewCountText) {
-		productReviewCountText.textContent = `상품 ID: ${state.productId}`;
+        productReviewCountText.textContent = `상품 ID: ${state.productId}`;
       }
       if (productImageEl && state.productImageUrl) {
         productImageEl.src = state.productImageUrl;
@@ -529,22 +685,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       // 상품 미감지 시 키워드 카드 숨기기
       if (keywordsPreviewCard) keywordsPreviewCard.style.display = 'none';
     }
+
+    adjustPopupLayoutToScreen();
   }
 
   // Keywords Preview on Landing Page
   async function triggerKeywordGeneration() {
-    if (!state.productTitle || state.generatedKeywords) return;
+    if (!state.productTitle) return;
+
+    // 1. 이미 탭 메모리에서 복원되었거나 현재 상태에 키워드가 있다면 즉시 칩 렌더링하고 LLM 호출 건너뜀 (0ms, 0 토큰)
+    if (state.generatedKeywords && state.generatedKeywords.length > 0) {
+      if (keywordsPreviewCard) keywordsPreviewCard.style.display = '';
+      if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = `${state.generatedKeywords.length}개`;
+      renderKeywordPreviewChips(state.generatedKeywords);
+      return;
+    }
 
     // Show card with loading state
     if (keywordsPreviewCard) keywordsPreviewCard.style.display = '';
     if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = '생성 중...';
+    adjustPopupLayoutToScreen();
 
     try {
       let keywords = null;
       if (isExtensionEnv) {
         const kwResponse = await chrome.runtime.sendMessage({
           action: 'GENERATE_KEYWORDS',
-          payload: { productTitle: state.productTitle }
+          payload: { productTitle: state.productTitle, productId: state.productId }
         });
         if (kwResponse && kwResponse.success && kwResponse.data && kwResponse.data.keywords) {
           keywords = kwResponse.data.keywords;
@@ -558,13 +725,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.generatedKeywords = keywords;
         if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = `${keywords.length}개 생성됨`;
         renderKeywordPreviewChips(keywords);
+
+        // 2. 생성된 키워드를 현재 탭의 content.js 메모리에 저장 (탭이 닫힐 때까지 유지)
+        if (isExtensionEnv && chrome.tabs) {
+          try {
+            const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (activeTab && activeTab.id) {
+              chrome.tabs.sendMessage(activeTab.id, {
+                action: 'STORE_TAB_KEYWORDS',
+                payload: { keywords }
+              });
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
       } else {
         if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = '생성 실패';
         if (keywordsPreviewChips) keywordsPreviewChips.innerHTML = '<p style="font-size:11px;color:#94a3b8;margin:4px 0;">키워드를 생성하지 못했어요. 리뷰 요약을 직접 시작해 주세요.</p>';
+        adjustPopupLayoutToScreen();
       }
     } catch (e) {
       console.warn('Keyword generation error:', e);
       if (keywordsPreviewStatus) keywordsPreviewStatus.textContent = '생성 실패';
+      adjustPopupLayoutToScreen();
     }
   }
 
@@ -578,6 +762,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         </svg>
       </button>
     `).join('');
+
+    adjustPopupLayoutToScreen();
 
     // 키워드 클릭 → 해당 키워드 기준 리뷰 분석 트리거
     keywordsPreviewChips.addEventListener('click', (e) => {
@@ -600,6 +786,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   toggleCustomIdBtn.addEventListener('click', () => {
     const isOpen = customIdBox.style.display === 'block';
     customIdBox.style.display = isOpen ? 'none' : 'block';
+    adjustPopupLayoutToScreen();
   });
 
   customIdPasteBtn.addEventListener('click', async () => {
@@ -622,7 +809,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!val) return;
     const match = val.match(/\/products\/([0-9]+)/) || val.match(/[?&]productId=([0-9]+)/) || val.match(/^[0-9]+$/);
     if (match) {
-      state.productId = match[1] || match[0];
+      const newId = match[1] || match[0];
+      if (state.productId !== newId) {
+        state.chatbotState.isSpecsAnalyzed = false;
+        state.chatbotState.hasShownGreeting = false;
+        state.chatbotState.chatHistory = [];
+        isChatbotInitialized = false;
+        if (chatbotMessagesContainer) {
+          chatbotMessagesContainer.innerHTML = '<div class="chatbot-scroll-anchor" id="chatbotScrollAnchor"></div>';
+        }
+      }
+      state.productId = newId;
       state.isProductDetected = true;
       state.productTitle = `수동 지정 상품 (ID: ${state.productId})`;
       state.productReviewCount = 0;
@@ -1199,7 +1396,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
           }, '*');
         }
-      } catch (postErr) {}
+      } catch (postErr) { }
 
     } catch (e) {
       console.warn('[Console Log Warning]:', e);
@@ -1646,7 +1843,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         const raw = localStorage.getItem('coupang_ai_last_session');
         if (raw) lastSession = JSON.parse(raw);
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (!lastSession || !lastSession.resultData) {
@@ -1691,7 +1888,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
           const raw = localStorage.getItem('coupang_ai_last_session');
           if (raw) lastSession = JSON.parse(raw);
-        } catch (e) {}
+        } catch (e) { }
       }
 
       if (lastSession && lastSession.resultData) {
@@ -1837,6 +2034,410 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ----------------------------------------------------
+  // 10. Product Chatbot Controller (A안: 상세 이미지 기반 Q&A)
+  // ----------------------------------------------------
+  let isChatbotInitialized = false;
+
+  function renderAnalysisLoadingBubble(msg) {
+    if (!chatbotMessagesContainer) return;
+    let bubble = document.getElementById('chatbotAnalysisLoadingBubble');
+    if (!bubble) {
+      bubble = document.createElement('div');
+      bubble.id = 'chatbotAnalysisLoadingBubble';
+      bubble.className = 'chat-message bot chatbot-analysis-loading-bubble';
+      bubble.innerHTML = `
+        <div class="chat-avatar">AI</div>
+        <div class="chat-bubble">
+          <div class="typing-dots">
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+            <span class="typing-dot"></span>
+          </div>
+          <span class="chatbot-analysis-status-msg" id="chatbotAnalysisStatusMsg">${escapeHtml(msg)}</span>
+        </div>
+      `;
+      const anchor = document.getElementById('chatbotScrollAnchor');
+      if (anchor && anchor.parentNode === chatbotMessagesContainer) {
+        chatbotMessagesContainer.insertBefore(bubble, anchor);
+      } else {
+        chatbotMessagesContainer.appendChild(bubble);
+      }
+    } else {
+      const msgEl = bubble.querySelector('#chatbotAnalysisStatusMsg');
+      if (msgEl) msgEl.textContent = msg;
+    }
+    scrollChatToBottom(false);
+  }
+
+  function removeAnalysisLoadingBubble() {
+    const bubble = document.getElementById('chatbotAnalysisLoadingBubble');
+    if (bubble && bubble.parentNode) {
+      bubble.parentNode.removeChild(bubble);
+    }
+  }
+
+  async function initChatbotSession(forceRetry = false) {
+    if (!state.isProductDetected || !state.productId) {
+      if (chatbotNoticeCard) {
+        chatbotNoticeCard.style.display = 'block';
+        chatbotNoticeTitle.textContent = '상품 미감지';
+        chatbotNoticeDesc.textContent = '쿠팡 상품 페이지에서 열거나, 먼저 상품 ID를 지정해 주세요.';
+        chatbotNoticeRetryBtn.style.display = 'none';
+      }
+      if (chatbotMessagesContainer) chatbotMessagesContainer.style.display = 'none';
+      if (chatbotInputText) chatbotInputText.disabled = true;
+      if (chatbotSendBtn) chatbotSendBtn.disabled = true;
+      if (chatbotStatusDot) chatbotStatusDot.className = 'status-dot-gray';
+      if (chatbotStatusText) chatbotStatusText.textContent = '상품 정보 필요';
+      removeAnalysisLoadingBubble();
+      return;
+    }
+
+    if (forceRetry) {
+      state.chatbotState.isSpecsAnalyzed = false;
+      state.chatbotState.hasShownGreeting = false;
+      state.chatbotState.chatHistory = [];
+      isChatbotInitialized = false;
+      if (chatbotMessagesContainer) {
+        chatbotMessagesContainer.innerHTML = '<div class="chatbot-scroll-anchor" id="chatbotScrollAnchor"></div>';
+      }
+    }
+
+    // 이미 분석이 완료되어 있다면 기존 상태 유지
+    if (isChatbotInitialized && !forceRetry && state.chatbotState.isSpecsAnalyzed) {
+      removeAnalysisLoadingBubble();
+      if (!state.chatbotState.hasShownGreeting && (!state.chatbotState.chatHistory || state.chatbotState.chatHistory.length === 0)) {
+        appendChatBubble('bot', `안녕하세요! 이 상품의 **상세 설명란 이미지(제조사 제공 정보 ${state.chatbotState.imageCount || 1}장)**를 분석했습니다. 실측 사이즈, 소재/성분, 사용 방법, 보관법, 주의사항 등 궁금한 점을 질문해 보세요!`);
+        state.chatbotState.hasShownGreeting = true;
+      }
+      if (chatbotInputText) chatbotInputText.disabled = false;
+      if (chatbotSendBtn) chatbotSendBtn.disabled = false;
+      scrollChatToBottom(false);
+      adjustPopupLayoutToScreen();
+      return;
+    }
+
+    // Step 1: Active tab content script로부터 /q89/ 이미지 URL 파싱
+    if (chatbotStatusDot) chatbotStatusDot.className = 'status-dot-pulse';
+    if (chatbotStatusText) chatbotStatusText.textContent = '상세페이지 이미지 찾는 중...';
+    if (chatbotNoticeCard) chatbotNoticeCard.style.display = 'none';
+    if (chatbotMessagesContainer) chatbotMessagesContainer.style.display = 'flex';
+    if (chatbotInputText) chatbotInputText.disabled = true;
+    if (chatbotSendBtn) chatbotSendBtn.disabled = true;
+
+    // 분석 진행 중 로딩 인디케이터 표시 (분석 완료 전에는 완료 인사말을 절대 출력하지 않음)
+    renderAnalysisLoadingBubble('상세페이지 이미지를 확인하고 있습니다...');
+
+    try {
+      let imageUrls = [];
+
+      if (isExtensionEnv && chrome.tabs) {
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (activeTab && activeTab.id) {
+          const res = await new Promise(resolve => {
+            chrome.tabs.sendMessage(activeTab.id, { action: 'GET_DETAIL_IMAGES' }, (r) => {
+              resolve(r);
+            });
+            setTimeout(() => resolve(null), 3500);
+          });
+          if (res && res.success && Array.isArray(res.data?.imageUrls)) {
+            imageUrls = res.data.imageUrls;
+          }
+        }
+      } else {
+        imageUrls = [
+          "https://thumbnail.coupangcdn.com/thumbnails/remote/q89/image/retail/images/2026/06/02/17/9/479dfa5c-9dd1-40bd-836b-742f18b2becb.jpg"
+        ];
+      }
+
+      console.log(`[Chatbot] Scraped ${imageUrls.length} detail images for product ${state.productId}`);
+
+      // 이미지가 0개인 경우
+      if (!imageUrls || imageUrls.length === 0) {
+        removeAnalysisLoadingBubble();
+        if (chatbotNoticeCard) {
+          chatbotNoticeCard.style.display = 'block';
+          chatbotNoticeTitle.textContent = '상세 이미지를 찾을 수 없어요';
+          chatbotNoticeDesc.textContent = '이 상품 페이지에서 상세 설명란 이미지를 찾지 못했습니다. 상세 페이지를 직접 확인해주세요.';
+          chatbotNoticeRetryBtn.style.display = 'inline-block';
+        }
+        if (chatbotMessagesContainer) chatbotMessagesContainer.style.display = 'none';
+        if (chatbotStatusText) chatbotStatusText.textContent = '상세 이미지 없음';
+        if (chatbotStatusDot) chatbotStatusDot.className = 'status-dot-gray';
+        adjustPopupLayoutToScreen();
+        return;
+      }
+
+      // Step 2: 백그라운드로 1회 이미지 스펙 분석 & 캐싱 요청
+      if (chatbotStatusText) chatbotStatusText.textContent = `상세페이지 이미지 ${imageUrls.length}장 분석 중...`;
+      renderAnalysisLoadingBubble(`상세페이지 이미지 ${imageUrls.length}장을 분석하고 있습니다...`);
+      state.chatbotState.isAnalyzingSpecs = true;
+
+      let analyzeRes;
+      if (isExtensionEnv) {
+        analyzeRes = await chrome.runtime.sendMessage({
+          action: 'ANALYZE_PRODUCT_IMAGES',
+          payload: {
+            productId: state.productId,
+            imageUrls,
+            productTitle: state.productTitle
+          }
+        });
+      } else {
+        await sleep(1000);
+        analyzeRes = { success: true, specsText: '모의 스펙 데이터입니다.', imageCount: imageUrls.length };
+      }
+
+      if (!analyzeRes || !analyzeRes.success) {
+        throw new Error(analyzeRes?.message || '상세 이미지 분석에 실패했습니다.');
+      }
+
+      // 로딩 버블 제거
+      removeAnalysisLoadingBubble();
+
+      state.chatbotState.isSpecsAnalyzed = true;
+      state.chatbotState.isAnalyzingSpecs = false;
+      state.chatbotState.imageCount = analyzeRes.imageCount || imageUrls.length;
+      isChatbotInitialized = true;
+
+      if (chatbotStatusDot) chatbotStatusDot.className = 'status-dot-green';
+      if (chatbotStatusText) chatbotStatusText.textContent = `상세페이지 분석 완료`;
+
+      // ★ 분석이 완전히 끝난 이 시점에 비로소 첫 인사말 및 완료 메시지 출력!
+      if (!state.chatbotState.hasShownGreeting) {
+        appendChatBubble('bot', `안녕하세요! 이 상품의 **상세 설명란 이미지(제조사 제공 정보 ${state.chatbotState.imageCount}장)**를 분석했습니다. 실측 사이즈, 소재/성분, 사용 방법, 보관법, 주의사항 등 궁금한 점을 질문해 보세요!`);
+        state.chatbotState.hasShownGreeting = true;
+      }
+
+      if (chatbotInputText) {
+        chatbotInputText.disabled = false;
+        try {
+          chatbotInputText.focus({ preventScroll: true });
+        } catch (e) {
+          chatbotInputText.focus();
+        }
+      }
+      if (chatbotSendBtn) chatbotSendBtn.disabled = false;
+      scrollChatToBottom(false);
+      adjustPopupLayoutToScreen();
+
+    } catch (err) {
+      console.warn('[Chatbot] Init error:', err);
+      removeAnalysisLoadingBubble();
+      if (chatbotStatusDot) chatbotStatusDot.className = 'status-dot-red';
+      if (chatbotStatusText) chatbotStatusText.textContent = '분석 실패';
+      if (chatbotNoticeCard) {
+        chatbotNoticeCard.style.display = 'block';
+        chatbotNoticeTitle.textContent = '분석 중 오류 발생';
+        chatbotNoticeDesc.textContent = err.message || '상세 이미지를 분석하는 중 문제가 발생했습니다.';
+        chatbotNoticeRetryBtn.style.display = 'inline-block';
+      }
+      if (chatbotInputText) chatbotInputText.disabled = true;
+      if (chatbotSendBtn) chatbotSendBtn.disabled = true;
+      adjustPopupLayoutToScreen();
+    }
+  }
+
+  // Handle Chatbot Question Submit
+  async function handleChatbotQuestionSubmit(e) {
+    if (e) e.preventDefault();
+    const question = chatbotInputText.value.trim();
+    if (!question || state.chatbotState.isSendingQuestion) return;
+
+    // 1. 사용자 질문 버블 추가 및 스크롤
+    appendChatBubble('user', question);
+    chatbotInputText.value = '';
+    chatbotInputText.disabled = true;
+    chatbotSendBtn.disabled = true;
+    state.chatbotState.isSendingQuestion = true;
+
+    // 2. 타이핑 로딩 버블 추가 및 스크롤
+    const typingBubble = appendTypingIndicator();
+    scrollChatToBottom(true);
+
+    try {
+      let res;
+      if (isExtensionEnv) {
+        res = await chrome.runtime.sendMessage({
+          action: 'ASK_PRODUCT_CHATBOT',
+          payload: {
+            productId: state.productId,
+            question,
+            chatHistory: state.chatbotState.chatHistory,
+            productTitle: state.productTitle
+          }
+        });
+      } else {
+        await sleep(800);
+        res = { success: true, answer: '상세 이미지 분석 결과, 본 제품은 표준 규격 및 호환성을 만족합니다.' };
+      }
+
+      // 로딩 버블 제거
+      if (typingBubble && typingBubble.parentNode) {
+        typingBubble.parentNode.removeChild(typingBubble);
+      }
+
+      if (res && res.success && res.answer) {
+        appendChatBubble('bot', res.answer);
+        state.chatbotState.chatHistory.push(
+          { role: 'user', text: question },
+          { role: 'bot', text: res.answer }
+        );
+      } else {
+        appendChatBubble('bot', res?.message || '답변을 생성하지 못했습니다. 잠시 후 다시 질문해 주세요.');
+      }
+    } catch (err) {
+      if (typingBubble && typingBubble.parentNode) {
+        typingBubble.parentNode.removeChild(typingBubble);
+      }
+      appendChatBubble('bot', `오류가 발생했습니다: ${err.message || '답변을 불러오지 못했습니다.'}`);
+    } finally {
+      state.chatbotState.isSendingQuestion = false;
+      chatbotInputText.disabled = false;
+      chatbotSendBtn.disabled = false;
+      try {
+        chatbotInputText.focus({ preventScroll: true });
+      } catch (e) {
+        chatbotInputText.focus();
+      }
+      scrollChatToBottom(true);
+    }
+  }
+
+  function renderMarkdown(rawText) {
+    if (!rawText) return '';
+    let text = escapeHtml(rawText);
+    // Bold: **text**
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // Italic: *text*
+    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    // Bullet points: - or * or • at start of line
+    text = text.replace(/^[ \t]*[-*•][ \t]+(.*)$/gm, '<li style="margin-left: 14px; list-style-type: disc; margin-bottom: 3px;">$1</li>');
+    // Convert multiple sequential <li> into <ul>
+    text = text.replace(/((?:<li[^>]*>.*?<\/li>\s*)+)/g, '<ul style="margin: 6px 0; padding-left: 4px;">$1</ul>');
+    // Numbered lists: 1. or 2.
+    text = text.replace(/^[ \t]*(\d+)\.[ \t]+(.*)$/gm, '<li style="margin-left: 14px; list-style-type: decimal; margin-bottom: 3px;">$1</li>');
+    // Line breaks (except around <ul>/<li>)
+    text = text.replace(/\n/g, '<br>');
+    text = text.replace(/<\/ul><br>/g, '</ul>');
+    text = text.replace(/<br><ul/g, '<ul');
+    return text;
+  }
+
+  // Smoothly and reliably auto-scroll chatbot viewport to bottom
+  function scrollChatToBottom(smooth = true) {
+    const viewport = document.getElementById('viewViewport');
+    if (!viewport) return;
+
+    const performScroll = () => {
+      try {
+        const targetScrollTop = viewport.scrollHeight;
+        if (typeof viewport.scrollTo === 'function') {
+          viewport.scrollTo({
+            top: targetScrollTop,
+            behavior: smooth ? 'smooth' : 'auto'
+          });
+        } else {
+          viewport.scrollTop = targetScrollTop;
+        }
+      } catch (err) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    };
+
+    // 1st frame: immediate scroll
+    performScroll();
+
+    // 2nd frame: requestAnimationFrame after DOM tree insertion
+    requestAnimationFrame(() => {
+      performScroll();
+    });
+
+    // 3rd & 4th passes: after markdown styling, line wraps, dynamic element heights
+    setTimeout(performScroll, 50);
+    setTimeout(performScroll, 160);
+    setTimeout(performScroll, 320);
+  }
+
+  function appendChatBubble(role, text) {
+    if (!chatbotMessagesContainer) return null;
+    const msgEl = document.createElement('div');
+    msgEl.className = `chat-message ${role}`;
+    if (role === 'bot') {
+      const formatted = (typeof renderMarkdown === 'function') ? renderMarkdown(text) : escapeHtml(text).replace(/\n/g, '<br>');
+      msgEl.innerHTML = `
+        <div class="chat-avatar">AI</div>
+        <div class="chat-bubble">${formatted}</div>
+      `;
+    } else {
+      msgEl.innerHTML = `
+        <div class="chat-bubble">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
+      `;
+    }
+
+    const anchor = document.getElementById('chatbotScrollAnchor');
+    if (anchor && anchor.parentNode === chatbotMessagesContainer) {
+      chatbotMessagesContainer.insertBefore(msgEl, anchor);
+    } else {
+      chatbotMessagesContainer.appendChild(msgEl);
+    }
+
+    scrollChatToBottom(true);
+    return msgEl;
+  }
+
+  function appendTypingIndicator() {
+    if (!chatbotMessagesContainer) return null;
+    const msgEl = document.createElement('div');
+    msgEl.className = 'chat-message bot typing-message';
+    msgEl.innerHTML = `
+      <div class="chat-avatar">AI</div>
+      <div class="chat-bubble">
+        <div class="typing-dots">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+      </div>
+    `;
+
+    const anchor = document.getElementById('chatbotScrollAnchor');
+    if (anchor && anchor.parentNode === chatbotMessagesContainer) {
+      chatbotMessagesContainer.insertBefore(msgEl, anchor);
+    } else {
+      chatbotMessagesContainer.appendChild(msgEl);
+    }
+
+    scrollChatToBottom(true);
+    return msgEl;
+  }
+
+  // Event Listeners for Chatbot
+  if (chatbotInputForm) {
+    chatbotInputForm.addEventListener('submit', handleChatbotQuestionSubmit);
+  }
+
+  if (chatbotInputText) {
+    chatbotInputText.addEventListener('input', () => {
+      if (chatbotSendBtn) {
+        chatbotSendBtn.disabled = !chatbotInputText.value.trim() || state.chatbotState.isSendingQuestion;
+      }
+    });
+
+    chatbotInputText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleChatbotQuestionSubmit(e);
+      }
+    });
+  }
+
+  if (chatbotNoticeRetryBtn) {
+    chatbotNoticeRetryBtn.addEventListener('click', () => {
+      initChatbotSession(true);
+    });
+  }
 
   // ----------------------------------------------------
   // Helper Functions

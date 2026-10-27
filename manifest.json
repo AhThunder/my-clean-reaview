@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MyCleanReview",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "쿠팡 상품 리뷰를 사용자의 설정에 맞게 추출하여 LLM을 활용해 스마트하게 요약합니다.",
   "icons": {
     "16": "icons/icon16.png",
@@ -54,6 +54,7 @@
   ],
   "host_permissions": [
     "*://*.coupang.com/*",
+    "*://*.coupangcdn.com/*",
     "https://generativelanguage.googleapis.com/*"
   ]
 }
