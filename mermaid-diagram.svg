@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 965.7779999999998 1247.209" width="965.7779999999998" height="1247.209" style="--bg:#18181B;--fg:#F4F4F5;--line:#71717A;--muted:#A1A1AA;--surface:#27272A;--border:#3F3F46;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Host" data-label="쿠팡 상품 상세페이지 (coupang.com)">
+  <rect x="148.62499999999994" y="40" width="689.276" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="148.62499999999994" y="40" width="689.276" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="160.62499999999994" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">쿠팡 상품 상세페이지 (coupang.com)</text>
+</g>
+<g class="subgraph" data-id="PipelineA" data-label="Pipeline A : 리뷰 사전 정제 및 비판적 요약">
+  <rect x="40" y="196.9" width="442.2269999999999" height="919.4089999999999" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="196.9" width="442.2269999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="210.9" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Pipeline A : 리뷰 사전 정제 및 비판적 요약</text>
+</g>
+<g class="subgraph" data-id="PipelineB" data-label="Pipeline B : 멀티모달 상세 스펙 QnA 챗봇">
+  <rect x="510.22699999999986" y="849.6089999999998" width="415.55099999999993" height="266.70000000000005" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="510.22699999999986" y="849.6089999999998" width="415.55099999999993" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="522.2269999999999" y="863.6089999999998" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">Pipeline B : 멀티모달 상세 스펙 QnA 챗봇</text>
+</g>
+<polyline class="edge" data-from="A" data-to="C" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="318.2389999999999,120.9 318.239,178.9 261.11349999999993,178.9 261.11349999999993,240.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="B" data-to="J" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="660.877,120.9 660.877,831.6089999999998 718.0024999999998,831.6089999999998 718.0024999999998,893.6089999999998" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="I" data-to="M" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="261.11349999999993,1100.309 261.11349999999993,1135.309 489.55799999999994,1135.309 489.55799999999994,1170.309" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="L" data-to="M" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="718.0024999999998,1100.309 718.0024999999998,1135.309 489.55799999999994,1135.309 489.55799999999994,1170.309" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="C" data-to="D" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="261.11349999999993,277.8 261.11349999999993,325.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="D" data-to="E" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="261.11349999999993,362.70000000000005 261.11349999999993,410.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="E" data-to="F" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="협찬 및 이모지 도배" points="225.5453333333333,588.5408333333335 225.5453333333333,636.109 170.54549999999995,636.109 170.54549999999995,740.409" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="E" data-to="G" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="클린 리뷰 통과" points="296.6816666666666,588.5408333333334 296.6816666666666,636.109 351.6814999999999,636.109 351.6814999999999,857.6089999999999 304.41416666666663,857.6089999999999 304.41416666666663,893.6089999999999" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="F" data-to="G" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="사용자 개별 체크 시 합류" points="170.54549999999995,777.309 170.54549999999995,857.6089999999999 217.8128333333333,857.6089999999999 217.8128333333333,893.6089999999999" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="G" data-to="H" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="261.11349999999993,930.5089999999999 261.11349999999993,978.5089999999999" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="H" data-to="I" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="261.11349999999993,1015.4089999999999 261.11349999999993,1063.4089999999999" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="J" data-to="K" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="718.0024999999998,930.5089999999998 718.0024999999998,978.5089999999998" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="K" data-to="L" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="718.0024999999998,1015.4089999999999 718.0024999999998,1063.4089999999999" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="E" data-to="F" data-label="협찬 및 이모지 도배">
+  <rect x="111.04549999999998" y="667.109" width="118.036" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="170.06349999999998" y="682.259" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">협찬 및 이모지 도배</text>
+</g>
+<g class="edge-label" data-from="E" data-to="G" data-label="클린 리뷰 통과">
+  <rect x="305.1814999999999" y="743.709" width="92.49400000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="351.42849999999993" y="758.8589999999999" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">클린 리뷰 통과</text>
+</g>
+<g class="edge-label" data-from="F" data-to="G" data-label="사용자 개별 체크 시 합류">
+  <rect x="98.54549999999998" y="820.309" width="143.57800000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="170.3345" y="835.459" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">사용자 개별 체크 시 합류</text>
+</g>
+<g class="node" data-id="M" data-label="인페이지 슬라이드 패널 렌더링 및 F12 검증 테이블 출력" data-shape="rectangle">
+  <rect x="294.448" y="1170.309" width="390.2199999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="489.55799999999994" y="1188.759" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">인페이지 슬라이드 패널 렌더링 및 F12 검증 테이블 출력</text>
+</g>
+<g class="node" data-id="A" data-label="상품 메타데이터 자동 감지 및 플로팅 위젯" data-shape="rectangle">
+  <rect x="164.62499999999994" y="84" width="307.228" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="318.2389999999999" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">상품 메타데이터 자동 감지 및 플로팅 위젯</text>
+</g>
+<g class="node" data-id="B" data-label="상세설명 더보기 자동 확장 및 통이미지 수집" data-shape="rectangle">
+  <rect x="499.85299999999995" y="84" width="322.04799999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="660.877" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">상세설명 더보기 자동 확장 및 통이미지 수집</text>
+</g>
+<g class="node" data-id="C" data-label="별점 비율 타겟 리뷰 수집 (1~5점 정밀 쿼리)" data-shape="rectangle">
+  <rect x="108.61099999999998" y="240.9" width="305.00499999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="261.11349999999993" y="259.35" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">별점 비율 타겟 리뷰 수집 (1~5점 정밀 쿼리)</text>
+</g>
+<g class="node" data-id="D" data-label="순수 텍스트 경량 추출 (메타데이터 80~90% 제거)" data-shape="rectangle">
+  <rect x="88.23349999999995" y="325.8" width="345.76" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="261.11349999999993" y="344.25" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">순수 텍스트 경량 추출 (메타데이터 80~90% 제거)</text>
+</g>
+<g class="node" data-id="E" data-label="3단계 기계식 사전 필터" data-shape="diamond">
+  <polygon points="261.11349999999993,410.7000000000001 367.8179999999999,517.4045000000001 261.11349999999993,624.1090000000002 154.40899999999993,517.4045000000001" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="261.11349999999993" y="517.4045000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">3단계 기계식 사전 필터</text>
+</g>
+<g class="node" data-id="F" data-label="제외 리뷰 보관함 (사유 표시)" data-shape="rectangle">
+  <rect x="59.909499999999966" y="740.409" width="221.272" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="170.54549999999995" y="758.859" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">제외 리뷰 보관함 (사유 표시)</text>
+</g>
+<g class="node" data-id="G" data-label="Fisher-Yates 비율별 무작위 샘플링" data-shape="rectangle">
+  <rect x="131.21149999999997" y="893.6089999999999" width="259.804" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="261.11349999999993" y="912.059" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Fisher-Yates 비율별 무작위 샘플링</text>
+</g>
+<g class="node" data-id="H" data-label="1차 AI 호출: 카테고리 맞춤 핵심 키워드 6개 생성" data-shape="rectangle">
+  <rect x="92.67949999999999" y="978.5089999999999" width="336.86799999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="261.11349999999993" y="996.959" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">1차 AI 호출: 카테고리 맞춤 핵심 키워드 6개 생성</text>
+</g>
+<g class="node" data-id="I" data-label="2차 AI 호출: 비판적 페르소나 기반 긍부정 및 장단점 구조화" data-shape="rectangle">
+  <rect x="56" y="1063.4089999999999" width="410.2269999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="261.11349999999993" y="1081.859" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">2차 AI 호출: 비판적 페르소나 기반 긍부정 및 장단점 구조화</text>
+</g>
+<g class="node" data-id="J" data-label="상세 이미지 병렬 변환 및 멀티모달 비전 분석 (최초 1회)" data-shape="rectangle">
+  <rect x="526.2269999999999" y="893.6089999999998" width="383.55099999999993" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="718.0024999999998" y="912.0589999999999" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">상세 이미지 병렬 변환 및 멀티모달 비전 분석 (최초 1회)</text>
+</g>
+<g class="node" data-id="K" data-label="공식 제품 스펙 인메모리 캐싱 (규격, 성분, 주의사항)" data-shape="rectangle">
+  <rect x="534.3779999999999" y="978.5089999999998" width="367.2489999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="718.0024999999998" y="996.9589999999998" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">공식 제품 스펙 인메모리 캐싱 (규격, 성분, 주의사항)</text>
+</g>
+<g class="node" data-id="L" data-label="할루시네이션 방지 가드레일 기반 실시간 질의응답" data-shape="rectangle">
+  <rect x="535.8599999999999" y="1063.4089999999999" width="364.28499999999997" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="718.0024999999998" y="1081.859" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">할루시네이션 방지 가드레일 기반 실시간 질의응답</text>
+</g>
+</svg>
